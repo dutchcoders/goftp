@@ -23,9 +23,16 @@ func main() {
         panic(err)
     }
 
-    if err = ftp.CWD("/"); err != nil {
+    if err = ftp.Cwd("/"); err != nil {
         panic(err)
     }
+
+    var curpath string
+    if curpath, err = ftp.Pwd("/"); err != nil {
+        panic(err)
+    }
+
+    fmt.Printf("Current path: %s", curpath)
 
     var files []string
     if files, err = ftp.List(""); err != nil {

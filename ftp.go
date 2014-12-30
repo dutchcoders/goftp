@@ -88,8 +88,90 @@ func (ftp *FTP) Walk(path string, walkFn WalkFunc) (err error) {
 	return
 }
 
-func (ftp *FTP) CWD(path string) (err error) {
+func (ftp *FTP) Quit() (err error) {
+	if err = ftp.send("QUIT"); err != nil {
+		return
+	}
+
+	ftp.conn.Close()
+	return nil
+}
+
+func (ftp *FTP) Noop(path string) (err error) {
+	if err = ftp.send("NOOP"); err != nil {
+		return
+	}
+
+	var line string
+	if line, err = ftp.receive(); err != nil {
+		return
+	}
+
+	if !strings.HasPrefix(line, "200") {
+		return errors.New(line)
+	}
+
+	return
+}
+
+func (ftp *FTP) Mkd(path string) (err error) {
+	if err = ftp.send("MKD %s", path); err != nil {
+		return
+	}
+
+	var line string
+	if line, err = ftp.receive(); err != nil {
+		return
+	}
+
+	if !strings.HasPrefix(line, "257") {
+		return errors.New(line)
+	}
+
+	return
+}
+
+func (ftp *FTP) Pwd() (path string, err error) {
+	if err = ftp.send("PWD"); err != nil {
+		return
+	}
+
+	var line string
+	if line, err = ftp.receive(); err != nil {
+		return
+	}
+
+	if !strings.HasPrefix(line, "257") {
+		return "", errors.New(line)
+	}
+
+	re, err := regexp.Compile(`\"(.*)\"`)
+
+	res := re.FindAllStringSubmatch(line[4:], -1)
+
+	path = res[0][1]
+	return
+}
+
+func (ftp *FTP) Cwd(path string) (err error) {
 	if err = ftp.send("CWD %s", path); err != nil {
+		return
+	}
+
+	var line string
+	if line, err = ftp.receive(); err != nil {
+		return
+	}
+
+	if !strings.HasPrefix(line, "250") {
+		return errors.New(line)
+	}
+
+	return
+}
+
+func (ftp *FTP) Dele(path string) (err error) {
+	if err = ftp.send("DELE %s", path); err != nil {
 		return
 	}
 
@@ -177,6 +259,59 @@ func (ftp *FTP) Pasv() (port int, err error) {
 	return
 }
 
+func (ftp *FTP) Stor(path string, r io.Reader) (err error) {
+	if err = ftp.Type("I"); err != nil {
+		return
+	}
+
+	var port int
+	if port, err = ftp.Pasv(); err != nil {
+		return
+	}
+
+	if err = ftp.send("STOR %s", path); err != nil {
+		return
+	}
+
+	var pconn net.Conn
+
+	if ftp.debug {
+		fmt.Println(fmt.Sprintf("Connecting to %s:%d", ftp.addr, port))
+	}
+
+	if pconn, err = net.Dial("tcp", fmt.Sprintf("%s:%d", ftp.addr, port)); err != nil {
+		return
+	}
+
+	var line string
+	if line, err = ftp.receive(); err != nil {
+		return
+	}
+
+	if !strings.HasPrefix(line, "150") {
+		err = errors.New(line)
+		return
+	}
+
+	if _, err = io.Copy(pconn, r); err != nil {
+		return
+	}
+
+	pconn.Close()
+
+	if line, err = ftp.receive(); err != nil {
+		return
+	}
+
+	if !strings.HasPrefix(line, "226") {
+		err = errors.New(line)
+		return
+	}
+
+	return
+
+}
+
 func (ftp *FTP) Retr(path string, f RetrFunc) (s string, err error) {
 	if err = ftp.Type("I"); err != nil {
 		return
@@ -187,8 +322,6 @@ func (ftp *FTP) Retr(path string, f RetrFunc) (s string, err error) {
 		return
 	}
 
-	// _, err = ftp.writer.WriteString(fmt.Sprintf("LIST %s\r\n", path))
-	// check for features LIST / MLSD
 	if err = ftp.send("RETR %s", path); err != nil {
 		return
 	}
@@ -334,5 +467,5 @@ func Connect(addr string) (*FTP, error) {
 	line, err = reader.ReadString('\n')
 	fmt.Print(line)
 
-	return &FTP{conn: conn, addr: addr, reader: reader, writer: writer, debug: false}, nil
+	return &FTP{conn: conn, addr: addr, reader: reader, writer: writer, debug: true}, nil
 }
