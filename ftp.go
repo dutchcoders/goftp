@@ -417,11 +417,11 @@ func (ftp *FTP) List(path string) (files []string, err error) {
 }
 
 func (ftp *FTP) Login(username string, password string) (err error) {
-	if _, err = ftp.cmd("331", "USER %s\r\n", username); err != nil {
+	if _, err = ftp.cmd("331", "USER %s", username); err != nil {
 		return
 	}
 
-	if _, err = ftp.cmd("230", "PASS %s\r\n", password); err != nil {
+	if _, err = ftp.cmd("230", "PASS %s", password); err != nil {
 		return
 	}
 
