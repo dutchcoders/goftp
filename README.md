@@ -3,13 +3,17 @@ goftp
 
 Golang FTP library with Walk support.
 
-
 ## Sample
 ```
-    var err error
-    var ftp *FTP
+package main
 
-    if ftp, err = ftp.ConnectFTP("ftp.server.com"); err != nil {
+import "github.com/dutchcoders/goftp"
+
+func main() {
+    var err error
+    var ftp *goftp.FTP
+
+    if ftp, err = goftp.Connect("ftp.server.com"); err != nil {
         panic(err)
     }
 
@@ -47,5 +51,21 @@ Golang FTP library with Walk support.
 
         return nil
     })
+}
 ```
+
+## Contributions
+
+Contributions are welcome.
+
+## Creators
+
+**Remco Verhoef**
+- <https://twitter.com/remco_verhoef>
+- <https://twitter.com/dutchcoders>
+
+## Copyright and license
+
+Code and documentation copyright 2011-2014 Remco Verhoef.
+Code released under [the MIT license](LICENSE).
 
