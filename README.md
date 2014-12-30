@@ -3,11 +3,20 @@ goftp
 
 Golang FTP library with Walk support.
 
+
+## Features
+
+* AUTH TLS support
+* Walk 
+
 ## Sample
 ```
 package main
 
-import "github.com/dutchcoders/goftp"
+import (
+    "github.com/dutchcoders/goftp"
+    "crypto/tls"
+)
 
 func main() {
     var err error
@@ -18,6 +27,15 @@ func main() {
     }
 
     defer ftp.Close()
+
+    config := tls.Config{
+            InsecureSkipVerify: true,
+            ClientAuth:         tls.RequestClientCert,
+    }
+
+    if err = ftp.AuthTLS(config); err != nil {
+            panic(err)
+    }
 
     if err = ftp.Login("username", "password"); err != nil {
         panic(err)
@@ -40,6 +58,14 @@ func main() {
     }
 
     fmt.Println(files)
+
+    if file, err := os.Open("/tmp/test.txt"); err!=nil {
+        panic(err)
+    }
+
+    if err := ftp.Stor("/test.txt", file); err!=nil {
+        panic(err)
+    }
 
     err = ftp.Walk("/", func(path string, info os.FileMode, err error) error {
         w := &bytes.Buffer{}

@@ -2,6 +2,7 @@ package goftp
 
 import (
 	"bufio"
+	"crypto/tls"
 	"errors"
 	"fmt"
 	"io"
@@ -17,7 +18,8 @@ type FTP struct {
 
 	addr string
 
-	debug bool
+	debug     bool
+	tlsconfig *tls.Config
 
 	reader *bufio.Reader
 	writer *bufio.Writer
@@ -187,6 +189,42 @@ func (ftp *FTP) Dele(path string) (err error) {
 	return
 }
 
+func (ftp *FTP) AuthTLS(config tls.Config) (err error) {
+	if err = ftp.send("AUTH TLS"); err != nil {
+		return
+	}
+
+	var line string
+	if line, err = ftp.receive(); err != nil {
+		return
+	}
+
+	if !strings.HasPrefix(line, "234") {
+		return errors.New(line)
+	}
+
+	// wrap tls on existing connection
+	ftp.tlsconfig = &config
+
+	ftp.conn = tls.Client(ftp.conn, &config)
+	ftp.writer = bufio.NewWriter(ftp.conn)
+	ftp.reader = bufio.NewReader(ftp.conn)
+
+	if err = ftp.send("PROT P"); err != nil {
+		return
+	}
+
+	if line, err = ftp.receive(); err != nil {
+		return
+	}
+
+	if !strings.HasPrefix(line, "200") {
+		return errors.New(line)
+	}
+
+	return
+}
+
 func (ftp *FTP) Type(t string) (err error) {
 	if err = ftp.send("TYPE %s", t); err != nil {
 		return
@@ -259,6 +297,22 @@ func (ftp *FTP) Pasv() (port int, err error) {
 	return
 }
 
+func (ftp *FTP) newConnection(port int) (conn net.Conn, err error) {
+	if ftp.debug {
+		fmt.Println(fmt.Sprintf("Connecting to %s:%d", ftp.addr, port))
+	}
+
+	if conn, err = net.Dial("tcp", fmt.Sprintf("%s:%d", ftp.addr, port)); err != nil {
+		return
+	}
+
+	if ftp.tlsconfig != nil {
+		conn = tls.Client(conn, ftp.tlsconfig)
+	}
+
+	return
+}
+
 func (ftp *FTP) Stor(path string, r io.Reader) (err error) {
 	if err = ftp.Type("I"); err != nil {
 		return
@@ -274,12 +328,7 @@ func (ftp *FTP) Stor(path string, r io.Reader) (err error) {
 	}
 
 	var pconn net.Conn
-
-	if ftp.debug {
-		fmt.Println(fmt.Sprintf("Connecting to %s:%d", ftp.addr, port))
-	}
-
-	if pconn, err = net.Dial("tcp", fmt.Sprintf("%s:%d", ftp.addr, port)); err != nil {
+	if pconn, err = ftp.newConnection(port); err != nil {
 		return
 	}
 
@@ -312,7 +361,7 @@ func (ftp *FTP) Stor(path string, r io.Reader) (err error) {
 
 }
 
-func (ftp *FTP) Retr(path string, f RetrFunc) (s string, err error) {
+func (ftp *FTP) Retr(path string, retrFn RetrFunc) (s string, err error) {
 	if err = ftp.Type("I"); err != nil {
 		return
 	}
@@ -327,13 +376,8 @@ func (ftp *FTP) Retr(path string, f RetrFunc) (s string, err error) {
 	}
 
 	var pconn net.Conn
-
-	if ftp.debug {
-		fmt.Println(fmt.Sprintf("Connecting to %s:%d", ftp.addr, port))
-	}
-
-	if pconn, err = net.Dial("tcp", fmt.Sprintf("%s:%d", ftp.addr, port)); err != nil {
-		return "", err
+	if pconn, err = ftp.newConnection(port); err != nil {
+		return
 	}
 
 	var line string
@@ -346,7 +390,7 @@ func (ftp *FTP) Retr(path string, f RetrFunc) (s string, err error) {
 		return
 	}
 
-	if err = f(pconn); err != nil {
+	if err = retrFn(pconn); err != nil {
 		return
 	}
 
@@ -381,17 +425,11 @@ func (ftp *FTP) List(path string) (files []string, err error) {
 	}
 
 	var pconn net.Conn
-
-	if ftp.debug {
-		fmt.Println(fmt.Sprintf("Connecting to %s:%d", ftp.addr, port))
-	}
-
-	if pconn, err = net.Dial("tcp", fmt.Sprintf("%s:%d", ftp.addr, port)); err != nil {
-		return nil, err
+	if pconn, err = ftp.newConnection(port); err != nil {
+		return
 	}
 
 	var line string
-
 	if line, err = ftp.receive(); err != nil {
 		return
 	}
