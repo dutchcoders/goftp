@@ -49,6 +49,7 @@ func parseLine(line string) (perm string, t string, filename string) {
 	return
 }
 
+// walks recursively through path and call walkfunc for each file
 func (ftp *FTP) Walk(path string, walkFn WalkFunc) (err error) {
 	/*
 		if err = walkFn(path, os.ModeDir, nil); err != nil {
@@ -99,52 +100,49 @@ func (ftp *FTP) Quit() (err error) {
 	return nil
 }
 
-func (ftp *FTP) Noop(path string) (err error) {
-	if err = ftp.send("NOOP"); err != nil {
+func (ftp *FTP) Noop() (err error) {
+	_, err = ftp.cmd("200", "NOOP")
+	return
+}
+
+// private function to send command and compare return code with expects
+func (ftp *FTP) cmd(expects string, command string, args ...interface{}) (line string, err error) {
+	if err = ftp.send(command, args...); err != nil {
 		return
 	}
 
-	var line string
 	if line, err = ftp.receive(); err != nil {
 		return
 	}
 
-	if !strings.HasPrefix(line, "200") {
-		return errors.New(line)
+	if !strings.HasPrefix(line, expects) {
+		err = errors.New(line)
+		return
 	}
 
 	return
 }
 
+func (ftp *FTP) Rename(from string, to string) (err error) {
+	if _, err = ftp.cmd("350", "RNFR %s", from); err != nil {
+		return
+	}
+
+	if _, err = ftp.cmd("250", "RNTO %s", to); err != nil {
+		return
+	}
+
+	return
+}
 func (ftp *FTP) Mkd(path string) (err error) {
-	if err = ftp.send("MKD %s", path); err != nil {
-		return
-	}
-
-	var line string
-	if line, err = ftp.receive(); err != nil {
-		return
-	}
-
-	if !strings.HasPrefix(line, "257") {
-		return errors.New(line)
-	}
-
+	_, err = ftp.cmd("257", "MKD %s", path)
 	return
 }
 
 func (ftp *FTP) Pwd() (path string, err error) {
-	if err = ftp.send("PWD"); err != nil {
-		return
-	}
-
 	var line string
-	if line, err = ftp.receive(); err != nil {
+	if line, err = ftp.cmd("257", "PWD"); err != nil {
 		return
-	}
-
-	if !strings.HasPrefix(line, "257") {
-		return "", errors.New(line)
 	}
 
 	re, err := regexp.Compile(`\"(.*)\"`)
@@ -156,19 +154,7 @@ func (ftp *FTP) Pwd() (path string, err error) {
 }
 
 func (ftp *FTP) Cwd(path string) (err error) {
-	if err = ftp.send("CWD %s", path); err != nil {
-		return
-	}
-
-	var line string
-	if line, err = ftp.receive(); err != nil {
-		return
-	}
-
-	if !strings.HasPrefix(line, "250") {
-		return errors.New(line)
-	}
-
+	_, err = ftp.cmd("250", "CWD %s", path)
 	return
 }
 
@@ -190,17 +176,8 @@ func (ftp *FTP) Dele(path string) (err error) {
 }
 
 func (ftp *FTP) AuthTLS(config tls.Config) (err error) {
-	if err = ftp.send("AUTH TLS"); err != nil {
+	if _, err = ftp.cmd("234", "AUTH TLS"); err != nil {
 		return
-	}
-
-	var line string
-	if line, err = ftp.receive(); err != nil {
-		return
-	}
-
-	if !strings.HasPrefix(line, "234") {
-		return errors.New(line)
 	}
 
 	// wrap tls on existing connection
@@ -210,40 +187,21 @@ func (ftp *FTP) AuthTLS(config tls.Config) (err error) {
 	ftp.writer = bufio.NewWriter(ftp.conn)
 	ftp.reader = bufio.NewReader(ftp.conn)
 
-	if err = ftp.send("PROT P"); err != nil {
+	if _, err = ftp.cmd("200", "PROT P"); err != nil {
 		return
-	}
-
-	if line, err = ftp.receive(); err != nil {
-		return
-	}
-
-	if !strings.HasPrefix(line, "200") {
-		return errors.New(line)
 	}
 
 	return
 }
 
 func (ftp *FTP) Type(t string) (err error) {
-	if err = ftp.send("TYPE %s", t); err != nil {
-		return
-	}
-
-	var line string
-	if line, err = ftp.receive(); err != nil {
-		return
-	}
-
-	if !strings.HasPrefix(line, "200") {
-		return errors.New(line)
-	}
-
+	_, err = ftp.cmd("200", "TYPE %s", t)
 	return
 }
 
 func (ftp *FTP) receive() (line string, err error) {
 	line, err = ftp.reader.ReadString('\n')
+
 	if ftp.debug {
 		fmt.Printf("< %s\n", line)
 	}
@@ -269,17 +227,8 @@ func (ftp *FTP) send(command string, arguments ...interface{}) (err error) {
 }
 
 func (ftp *FTP) Pasv() (port int, err error) {
-	if err = ftp.send("PASV"); err != nil {
-		return
-	}
-
 	var line string
-	if line, err = ftp.receive(); err != nil {
-		return
-	}
-
-	if !strings.HasPrefix(line, "227") {
-		err = errors.New(line)
+	if line, err = ftp.cmd("227", "PASV"); err != nil {
 		return
 	}
 
@@ -292,7 +241,7 @@ func (ftp *FTP) Pasv() (port int, err error) {
 	l1, _ := strconv.Atoi(s[len(s)-2])
 	l2, _ := strconv.Atoi(s[len(s)-1])
 
-	port = l1*256 + l2
+	port = l1<<8 + l2
 
 	return
 }
@@ -468,22 +417,12 @@ func (ftp *FTP) List(path string) (files []string, err error) {
 }
 
 func (ftp *FTP) Login(username string, password string) (err error) {
-	_, err = ftp.writer.WriteString(fmt.Sprintf("USER %s\r\n", username))
-	ftp.writer.Flush()
-
-	var line string
-
-	line, err = ftp.reader.ReadString('\n')
-	if !strings.HasPrefix(line, "331") {
-		return errors.New(line)
+	if _, err = ftp.cmd("331", "USER %s\r\n", username); err != nil {
+		return
 	}
 
-	_, err = ftp.writer.WriteString(fmt.Sprintf("PASS %s\r\n", password))
-	ftp.writer.Flush()
-
-	line, err = ftp.reader.ReadString('\n')
-	if !strings.HasPrefix(line, "230") {
-		return errors.New(line)
+	if _, err = ftp.cmd("230", "PASS %s\r\n", password); err != nil {
+		return
 	}
 
 	return
