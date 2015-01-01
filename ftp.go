@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log"
 	"net"
 	"os"
 	"regexp"
@@ -61,7 +62,7 @@ func (ftp *FTP) Walk(path string, walkFn WalkFunc) (err error) {
 		}
 	*/
 	if ftp.debug {
-		fmt.Printf("Walking: '%s'\n", path)
+		log.Printf("Walking: '%s'\n", path)
 	}
 
 	var lines []string
@@ -206,19 +207,20 @@ func (ftp *FTP) receive() (line string, err error) {
 	line, err = ftp.reader.ReadString('\n')
 
 	if ftp.debug {
-		fmt.Printf("< %s\n", line)
+		log.Printf("< %s", line)
 	}
 
 	return
 }
 
 func (ftp *FTP) send(command string, arguments ...interface{}) (err error) {
+	if ftp.debug {
+		log.Printf("> %s", fmt.Sprintf(command, arguments...))
+	}
+
 	command = fmt.Sprintf(command, arguments...)
 	command += "\r\n"
 
-	if ftp.debug {
-		fmt.Printf("> %s", command)
-	}
 
 	if _, err = ftp.writer.WriteString(command); err != nil {
 		return
@@ -229,6 +231,7 @@ func (ftp *FTP) send(command string, arguments ...interface{}) (err error) {
 	return
 }
 
+// enables passive data connection and returns port number
 func (ftp *FTP) Pasv() (port int, err error) {
 	var line string
 	if line, err = ftp.cmd("227", "PASV"); err != nil {
@@ -251,7 +254,7 @@ func (ftp *FTP) Pasv() (port int, err error) {
 
 func (ftp *FTP) newConnection(port int) (conn net.Conn, err error) {
 	if ftp.debug {
-		fmt.Println(fmt.Sprintf("Connecting to %s:%d", ftp.addr, port))
+		log.Printf("Connecting to %s\n", addr)
 	}
 
 	if conn, err = net.Dial("tcp", fmt.Sprintf("%s:%d", ftp.addr, port)); err != nil {
