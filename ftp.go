@@ -252,11 +252,13 @@ func (ftp *FTP) Pasv() (port int, err error) {
 }
 
 func (ftp *FTP) newConnection(port int) (conn net.Conn, err error) {
+	addr := fmt.Sprintf("%s:%d", strings.Split(ftp.addr, ":")[0], port)
+
 	if ftp.debug {
 		log.Printf("Connecting to %s\n", addr)
 	}
 
-	if conn, err = net.Dial("tcp", fmt.Sprintf("%s:%d", ftp.addr, port)); err != nil {
+	if conn, err = net.Dial("tcp", addr); err != nil {
 		return
 	}
 
@@ -433,11 +435,12 @@ func (ftp *FTP) Login(username string, password string) (err error) {
 	return
 }
 
+// connect to server
 func Connect(addr string) (*FTP, error) {
 	var err error
 	var conn net.Conn
 
-	if conn, err = net.Dial("tcp", fmt.Sprintf("%s:%d", addr, 21)); err != nil {
+	if conn, err = net.Dial("tcp", addr); err != nil {
 		return nil, err
 	}
 

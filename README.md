@@ -22,7 +22,7 @@ func main() {
     var err error
     var ftp *goftp.FTP
 
-    if ftp, err = goftp.Connect("ftp.server.com"); err != nil {
+    if ftp, err = goftp.Connect("ftp.server.com:21"); err != nil {
         panic(err)
     }
 
