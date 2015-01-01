@@ -87,7 +87,6 @@ func (ftp *FTP) Walk(path string, walkFn WalkFunc) (err error) {
 			if err = walkFn(path+subpath, os.FileMode(0), nil); err != nil {
 				return
 			}
-		default:
 		}
 	}
 
