@@ -13,6 +13,8 @@ import (
 	"strings"
 )
 
+var REGEX_PWD_PATH *regexp.Regexp = regexp.MustCompile(`\"(.*)\"`)
+
 type FTP struct {
 	conn net.Conn
 
@@ -145,9 +147,7 @@ func (ftp *FTP) Pwd() (path string, err error) {
 		return
 	}
 
-	re, err := regexp.Compile(`\"(.*)\"`)
-
-	res := re.FindAllStringSubmatch(line[4:], -1)
+	res := REGEX_PWD_PATH.FindAllStringSubmatch(line[4:], -1)
 
 	path = res[0][1]
 	return
