@@ -94,14 +94,17 @@ func (ftp *FTP) Walk(path string, walkFn WalkFunc) (err error) {
 }
 
 func (ftp *FTP) Quit() (err error) {
-	if err = ftp.send("QUIT"); err != nil {
-		return
+	if _, err := ftp.cmd("221", "QUIT"); err != nil {
+		return err
 	}
 
 	ftp.conn.Close()
+	ftp.conn = nil
+
 	return nil
 }
 
+// will send a NOOP (no operation) to the server
 func (ftp *FTP) Noop() (err error) {
 	_, err = ftp.cmd("200", "NOOP")
 	return
