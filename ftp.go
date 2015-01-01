@@ -93,6 +93,7 @@ func (ftp *FTP) Walk(path string, walkFn WalkFunc) (err error) {
 	return
 }
 
+// send quit to the server and close the connection
 func (ftp *FTP) Quit() (err error) {
 	if _, err := ftp.cmd("221", "QUIT"); err != nil {
 		return err
@@ -128,6 +129,7 @@ func (ftp *FTP) cmd(expects string, command string, args ...interface{}) (line s
 	return
 }
 
+// rename file
 func (ftp *FTP) Rename(from string, to string) (err error) {
 	if _, err = ftp.cmd("350", "RNFR %s", from); err != nil {
 		return
@@ -139,11 +141,14 @@ func (ftp *FTP) Rename(from string, to string) (err error) {
 
 	return
 }
-func (ftp *FTP) Mkd(path string) (err error) {
-	_, err = ftp.cmd("257", "MKD %s", path)
-	return
+
+// make directory
+func (ftp *FTP) Mkd(path string) error {
+	_, err := ftp.cmd("257", "MKD %s", path)
+	return err
 }
 
+// get current path
 func (ftp *FTP) Pwd() (path string, err error) {
 	var line string
 	if line, err = ftp.cmd("257", "PWD"); err != nil {
@@ -156,11 +161,13 @@ func (ftp *FTP) Pwd() (path string, err error) {
 	return
 }
 
+// change current path
 func (ftp *FTP) Cwd(path string) (err error) {
 	_, err = ftp.cmd("250", "CWD %s", path)
 	return
 }
 
+// delete file
 func (ftp *FTP) Dele(path string) (err error) {
 	if err = ftp.send("DELE %s", path); err != nil {
 		return
@@ -178,9 +185,10 @@ func (ftp *FTP) Dele(path string) (err error) {
 	return
 }
 
-func (ftp *FTP) AuthTLS(config tls.Config) (err error) {
-	if _, err = ftp.cmd("234", "AUTH TLS"); err != nil {
-		return
+// secures the ftp connection by using TLS
+func (ftp *FTP) AuthTLS(config tls.Config) error {
+	if _, err := ftp.cmd("234", "AUTH TLS"); err != nil {
+		return err
 	}
 
 	// wrap tls on existing connection
@@ -190,29 +198,30 @@ func (ftp *FTP) AuthTLS(config tls.Config) (err error) {
 	ftp.writer = bufio.NewWriter(ftp.conn)
 	ftp.reader = bufio.NewReader(ftp.conn)
 
-	if _, err = ftp.cmd("200", "PROT P"); err != nil {
-		return
+	if _, err := ftp.cmd("200", "PROT P"); err != nil {
+		return err
 	}
 
-	return
+	return nil
 }
 
-func (ftp *FTP) Type(t string) (err error) {
-	_, err = ftp.cmd("200", "TYPE %s", t)
-	return
+// change transfer type
+func (ftp *FTP) Type(t string) error {
+	_, err := ftp.cmd("200", "TYPE %s", t)
+	return err
 }
 
-func (ftp *FTP) receive() (line string, err error) {
-	line, err = ftp.reader.ReadString('\n')
+func (ftp *FTP) receive() (string, error) {
+	line, err := ftp.reader.ReadString('\n')
 
 	if ftp.debug {
 		log.Printf("< %s", line)
 	}
 
-	return
+	return line, err
 }
 
-func (ftp *FTP) send(command string, arguments ...interface{}) (err error) {
+func (ftp *FTP) send(command string, arguments ...interface{}) error {
 	if ftp.debug {
 		log.Printf("> %s", fmt.Sprintf(command, arguments...))
 	}
@@ -220,14 +229,15 @@ func (ftp *FTP) send(command string, arguments ...interface{}) (err error) {
 	command = fmt.Sprintf(command, arguments...)
 	command += "\r\n"
 
-
-	if _, err = ftp.writer.WriteString(command); err != nil {
-		return
+	if _, err := ftp.writer.WriteString(command); err != nil {
+		return err
 	}
 
-	err = ftp.writer.Flush()
+	if err := ftp.writer.Flush(); err != nil {
+		return err
+	}
 
-	return
+	return nil
 }
 
 // enables passive data connection and returns port number
@@ -251,6 +261,7 @@ func (ftp *FTP) Pasv() (port int, err error) {
 	return
 }
 
+// open new data connection
 func (ftp *FTP) newConnection(port int) (conn net.Conn, err error) {
 	addr := fmt.Sprintf("%s:%d", strings.Split(ftp.addr, ":")[0], port)
 
@@ -269,6 +280,7 @@ func (ftp *FTP) newConnection(port int) (conn net.Conn, err error) {
 	return
 }
 
+// upload file
 func (ftp *FTP) Stor(path string, r io.Reader) (err error) {
 	if err = ftp.Type("I"); err != nil {
 		return
@@ -317,6 +329,7 @@ func (ftp *FTP) Stor(path string, r io.Reader) (err error) {
 
 }
 
+// retrieves file
 func (ftp *FTP) Retr(path string, retrFn RetrFunc) (s string, err error) {
 	if err = ftp.Type("I"); err != nil {
 		return
@@ -364,6 +377,7 @@ func (ftp *FTP) Retr(path string, retrFn RetrFunc) (s string, err error) {
 	return
 }
 
+// list the path (or current directory)
 func (ftp *FTP) List(path string) (files []string, err error) {
 	if err = ftp.Type("A"); err != nil {
 		return
@@ -423,6 +437,7 @@ func (ftp *FTP) List(path string) (files []string, err error) {
 	return
 }
 
+// login to the server
 func (ftp *FTP) Login(username string, password string) (err error) {
 	if _, err = ftp.cmd("331", "USER %s", username); err != nil {
 		return
@@ -450,7 +465,12 @@ func Connect(addr string) (*FTP, error) {
 	var line string
 
 	line, err = reader.ReadString('\n')
-	fmt.Print(line)
 
-	return &FTP{conn: conn, addr: addr, reader: reader, writer: writer, debug: true}, nil
+	var debug bool = true
+
+	if debug {
+		log.Print(line)
+	}
+
+	return &FTP{conn: conn, addr: addr, reader: reader, writer: writer, debug: debug}, nil
 }
