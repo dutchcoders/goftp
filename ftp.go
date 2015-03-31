@@ -388,10 +388,11 @@ func (ftp *FTP) List(path string) (files []string, err error) {
 		return
 	}
 
-	// _, err = ftp.writer.WriteString(fmt.Sprintf("LIST %s\r\n", path))
-	// check for features LIST / MLSD
+	// check if MLSD works
 	if err = ftp.send("MLSD %s", path); err != nil {
-		return
+		if err = ftp.send("LIST %s", path); err != nil {
+			return
+		}
 	}
 
 	var pconn net.Conn
@@ -440,7 +441,13 @@ func (ftp *FTP) List(path string) (files []string, err error) {
 // login to the server
 func (ftp *FTP) Login(username string, password string) (err error) {
 	if _, err = ftp.cmd("331", "USER %s", username); err != nil {
-		return
+		if strings.HasPrefix(err.Error(), "230") {
+			// Ok, probably anonymous server
+			// but login was fine, so return no error
+			err = nil
+		} else {
+			return
+		}
 	}
 
 	if _, err = ftp.cmd("230", "PASS %s", password); err != nil {
@@ -451,7 +458,7 @@ func (ftp *FTP) Login(username string, password string) (err error) {
 }
 
 // connect to server
-func Connect(addr string) (*FTP, error) {
+func Connect(addr string, debugp bool) (*FTP, error) {
 	var err error
 	var conn net.Conn
 
@@ -466,7 +473,7 @@ func Connect(addr string) (*FTP, error) {
 
 	line, err = reader.ReadString('\n')
 
-	var debug bool = true
+	var debug bool = debugp
 
 	if debug {
 		log.Print(line)
