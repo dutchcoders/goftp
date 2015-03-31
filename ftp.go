@@ -215,7 +215,7 @@ func (ftp *FTP) receiveLine() (string, error) {
 	line, err := ftp.reader.ReadString('\n')
 
 	if ftp.debug {
-		fmt.Printf("< %s\n", line)
+		log.Printf("< %s", line)
 	}
 
 	return line, err
