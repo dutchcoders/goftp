@@ -228,7 +228,7 @@ func (ftp *FTP) receive() (string, error) {
 		return line, err
 	}
 
-	if line[3] == '-' {
+	if (len(line) >= 4) && (line[3] == '-') {
 		nextLine := ""
 		// This is a continuation of output line
 		nextLine, err = ftp.receive()
