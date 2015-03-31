@@ -211,11 +211,28 @@ func (ftp *FTP) Type(t string) error {
 	return err
 }
 
-func (ftp *FTP) receive() (string, error) {
+func (ftp *FTP) receiveLine() (string, error) {
 	line, err := ftp.reader.ReadString('\n')
 
 	if ftp.debug {
-		log.Printf("< %s", line)
+		fmt.Printf("< %s\n", line)
+	}
+
+	return line, err
+}
+
+func (ftp *FTP) receive() (string, error) {
+	line, err := ftp.receiveLine()
+
+	if err != nil {
+		return line, err
+	}
+
+	if line[3] == '-' {
+		nextLine := ""
+		// This is a continuation of output line
+		nextLine, err = ftp.receive()
+		line = line + nextLine
 	}
 
 	return line, err
