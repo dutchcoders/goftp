@@ -22,7 +22,7 @@ func main() {
     var err error
     var ftp *goftp.FTP
 
-    // to enable debug messages, call: goftp.ConnectDbg("ftp.server.com:21")
+    // For debug messages: goftp.ConnectDbg("ftp.server.com:21")
     if ftp, err = goftp.Connect("ftp.server.com:21"); err != nil {
         panic(err)
     }
