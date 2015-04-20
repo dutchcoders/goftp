@@ -474,8 +474,8 @@ func (ftp *FTP) Login(username string, password string) (err error) {
 	return
 }
 
-// connect to server
-func Connect(addr string, debugp bool) (*FTP, error) {
+// connect to server, debug is OFF
+func Connect(addr string) (*FTP, error) {
 	var err error
 	var conn net.Conn
 
@@ -496,5 +496,28 @@ func Connect(addr string, debugp bool) (*FTP, error) {
 		log.Print(line)
 	}
 
-	return &FTP{conn: conn, addr: addr, reader: reader, writer: writer, debug: debug}, nil
+	return &FTP{conn: conn, addr: addr, reader: reader, writer: writer, debug: false}, nil
+}
+
+// connect to server, debug is ON
+func ConnectDbg(addr string) (*FTP, error) {
+	var err error
+	var conn net.Conn
+
+	if conn, err = net.Dial("tcp", addr); err != nil {
+		return nil, err
+	}
+
+	writer := bufio.NewWriter(conn)
+	reader := bufio.NewReader(conn)
+
+	var line string
+
+	line, err = reader.ReadString('\n')
+
+	if debug {
+		log.Print(line)
+	}
+
+	return &FTP{conn: conn, addr: addr, reader: reader, writer: writer, debug: true}, nil
 }
