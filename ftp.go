@@ -495,15 +495,7 @@ func Connect(addr string) (*FTP, error) {
 	writer := bufio.NewWriter(conn)
 	reader := bufio.NewReader(conn)
 
-	var line string
-
-	line, err = reader.ReadString('\n')
-
-	var debug bool = debugp
-
-	if debug {
-		log.Print(line)
-	}
+	reader.ReadString('\n')
 
 	return &FTP{conn: conn, addr: addr, reader: reader, writer: writer, debug: false}, nil
 }
@@ -524,9 +516,7 @@ func ConnectDbg(addr string) (*FTP, error) {
 
 	line, err = reader.ReadString('\n')
 
-	if debug {
-		log.Print(line)
-	}
+	log.Print(line)
 
 	return &FTP{conn: conn, addr: addr, reader: reader, writer: writer, debug: true}, nil
 }
