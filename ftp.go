@@ -228,7 +228,7 @@ func (ftp *FTP) receive() (string, error) {
 		return line, err
 	}
 
-	if line[3] == '-' {
+	if (len(line) >= 4) && (line[3] == '-') {
 		nextLine := ""
 		// This is a continuation of output line
 		nextLine, err = ftp.receive()
@@ -407,9 +407,6 @@ func (ftp *FTP) List(path string) (files []string, err error) {
 
 	// check if MLSD works
 	if err = ftp.send("MLSD %s", path); err != nil {
-		if err = ftp.send("LIST %s", path); err != nil {
-			return
-		}
 	}
 
 	var pconn net.Conn
@@ -423,8 +420,20 @@ func (ftp *FTP) List(path string) (files []string, err error) {
 	}
 
 	if !strings.HasPrefix(line, "150") {
-		err = errors.New(line)
-		return
+		// MLSD failed, lets try LIST
+		if err = ftp.send("LIST %s", path); err != nil {
+			return
+		}
+
+		if line, err = ftp.receive(); err != nil {
+			return
+		}
+
+		if !strings.HasPrefix(line, "150") {
+			// Really list is not working here
+			err = errors.New(line)
+			return
+		}
 	}
 
 	reader := bufio.NewReader(pconn)
