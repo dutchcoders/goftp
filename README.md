@@ -92,6 +92,9 @@ func main() {
 
 Contributions are welcome.
 
+* Sourav Datta: for his work on the anonymous user login and multiline return status.
+
+
 ## Creators
 
 **Remco Verhoef**

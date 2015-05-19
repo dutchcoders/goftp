@@ -198,6 +198,10 @@ func (ftp *FTP) AuthTLS(config tls.Config) error {
 	ftp.writer = bufio.NewWriter(ftp.conn)
 	ftp.reader = bufio.NewReader(ftp.conn)
 
+	if _, err := ftp.cmd("200", "PBSZ 0"); err != nil {
+		return err
+	}
+
 	if _, err := ftp.cmd("200", "PROT P"); err != nil {
 		return err
 	}
