@@ -211,11 +211,28 @@ func (ftp *FTP) Type(t string) error {
 	return err
 }
 
-func (ftp *FTP) receive() (string, error) {
+func (ftp *FTP) receiveLine() (string, error) {
 	line, err := ftp.reader.ReadString('\n')
 
 	if ftp.debug {
 		log.Printf("< %s", line)
+	}
+
+	return line, err
+}
+
+func (ftp *FTP) receive() (string, error) {
+	line, err := ftp.receiveLine()
+
+	if err != nil {
+		return line, err
+	}
+
+	if (len(line) >= 4) && (line[3] == '-') {
+		nextLine := ""
+		// This is a continuation of output line
+		nextLine, err = ftp.receive()
+		line = line + nextLine
 	}
 
 	return line, err
@@ -388,10 +405,8 @@ func (ftp *FTP) List(path string) (files []string, err error) {
 		return
 	}
 
-	// _, err = ftp.writer.WriteString(fmt.Sprintf("LIST %s\r\n", path))
-	// check for features LIST / MLSD
+	// check if MLSD works
 	if err = ftp.send("MLSD %s", path); err != nil {
-		return
 	}
 
 	var pconn net.Conn
@@ -405,8 +420,20 @@ func (ftp *FTP) List(path string) (files []string, err error) {
 	}
 
 	if !strings.HasPrefix(line, "150") {
-		err = errors.New(line)
-		return
+		// MLSD failed, lets try LIST
+		if err = ftp.send("LIST %s", path); err != nil {
+			return
+		}
+
+		if line, err = ftp.receive(); err != nil {
+			return
+		}
+
+		if !strings.HasPrefix(line, "150") {
+			// Really list is not working here
+			err = errors.New(line)
+			return
+		}
 	}
 
 	reader := bufio.NewReader(pconn)
@@ -440,7 +467,13 @@ func (ftp *FTP) List(path string) (files []string, err error) {
 // login to the server
 func (ftp *FTP) Login(username string, password string) (err error) {
 	if _, err = ftp.cmd("331", "USER %s", username); err != nil {
-		return
+		if strings.HasPrefix(err.Error(), "230") {
+			// Ok, probably anonymous server
+			// but login was fine, so return no error
+			err = nil
+		} else {
+			return
+		}
 	}
 
 	if _, err = ftp.cmd("230", "PASS %s", password); err != nil {
@@ -450,8 +483,25 @@ func (ftp *FTP) Login(username string, password string) (err error) {
 	return
 }
 
-// connect to server
+// connect to server, debug is OFF
 func Connect(addr string) (*FTP, error) {
+	var err error
+	var conn net.Conn
+
+	if conn, err = net.Dial("tcp", addr); err != nil {
+		return nil, err
+	}
+
+	writer := bufio.NewWriter(conn)
+	reader := bufio.NewReader(conn)
+
+	reader.ReadString('\n')
+
+	return &FTP{conn: conn, addr: addr, reader: reader, writer: writer, debug: false}, nil
+}
+
+// connect to server, debug is ON
+func ConnectDbg(addr string) (*FTP, error) {
 	var err error
 	var conn net.Conn
 
@@ -466,11 +516,7 @@ func Connect(addr string) (*FTP, error) {
 
 	line, err = reader.ReadString('\n')
 
-	var debug bool = true
+	log.Print(line)
 
-	if debug {
-		log.Print(line)
-	}
-
-	return &FTP{conn: conn, addr: addr, reader: reader, writer: writer, debug: debug}, nil
+	return &FTP{conn: conn, addr: addr, reader: reader, writer: writer, debug: true}, nil
 }
