@@ -209,17 +209,18 @@ func (ftp *FTP) AuthTLS(config tls.Config) error {
 	return nil
 }
 
-
+// read all the buffered bytes and return
 func (ftp *FTP) ReadAndDiscard() (int, error) {
+	fmt.Println("svuoto")
 	var i int
 	var err error
-	buffer_size:=ftp.reader.Buffered()
-	for i = 0; i < buffer_size; i++ {		
-		if _, err=ftp.reader.ReadByte(); err != nil {
-			return i,err
+	buffer_size := ftp.reader.Buffered()
+	for i = 0; i < buffer_size; i++ {
+		if _, err = ftp.reader.ReadByte(); err != nil {
+			return i, err
 		}
-    }
-	return i,err
+	}
+	return i, err
 }
 
 // change transfer type
@@ -479,6 +480,31 @@ func (ftp *FTP) List(path string) (files []string, err error) {
 	}
 
 	return
+}
+
+// login on server with strange login behavior
+func (ftp *FTP) SmartLogin(username string, password string) (err error) {
+	// Maybe the server has some useless words to say. Make him talk
+	err = ftp.Noop()
+	if err != nil && strings.HasPrefix(err.Error(), "220") {
+		// Maybe with another Noop the server will ask us to login?
+		err = ftp.Noop()
+		if err != nil && strings.HasPrefix(err.Error(), "530") {
+			// ok, let's login
+
+			//ftp.Login(username, password)
+
+			if _, err = ftp.cmd("530", "USER %s", username); err != nil {
+				return
+			}
+			if _, err = ftp.cmd("230", "PASS %s", password); err != nil {
+				return
+			}
+		}
+
+	}
+	// Nothing strange... let's try a normal login
+	return ftp.Login(username, password)
 }
 
 // login to the server
