@@ -209,6 +209,19 @@ func (ftp *FTP) AuthTLS(config tls.Config) error {
 	return nil
 }
 
+
+func (ftp *FTP) ReadAndDiscard() (int, error) {
+	var i int
+	var err error
+	buffer_size:=ftp.reader.Buffered()
+	for i = 0; i < buffer_size; i++ {		
+		if _, err=ftp.reader.ReadByte(); err != nil {
+			return i,err
+		}
+    }
+	return i,err
+}
+
 // change transfer type
 func (ftp *FTP) Type(t string) error {
 	_, err := ftp.cmd("200", "TYPE %s", t)
