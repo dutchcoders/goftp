@@ -111,6 +111,24 @@ func (ftp *FTP) Noop() (err error) {
 	return
 }
 
+// Send raw commands, return response as string and response code as int
+func (ftp *FTP) RawCmd(command string, args ...interface{}) (code int, line string) {
+	code = -1
+	var err error
+	if err = ftp.send(command, args...); err != nil {
+		return code, ""
+	}
+
+	if line, err = ftp.receive(); err != nil {
+		return code, ""
+	}
+	code, err = strconv.Atoi(line[:3])
+	if ftp.debug {
+		log.Printf("Raw-> %s -> %d \n", fmt.Sprintf(command, args...), code)
+	}
+	return code, line
+}
+
 // private function to send command and compare return code with expects
 func (ftp *FTP) cmd(expects string, command string, args ...interface{}) (line string, err error) {
 	if err = ftp.send(command, args...); err != nil {
@@ -211,7 +229,6 @@ func (ftp *FTP) AuthTLS(config tls.Config) error {
 
 // read all the buffered bytes and return
 func (ftp *FTP) ReadAndDiscard() (int, error) {
-	fmt.Println("svuoto")
 	var i int
 	var err error
 	buffer_size := ftp.reader.Buffered()
@@ -484,21 +501,23 @@ func (ftp *FTP) List(path string) (files []string, err error) {
 
 // login on server with strange login behavior
 func (ftp *FTP) SmartLogin(username string, password string) (err error) {
+	var code int
 	// Maybe the server has some useless words to say. Make him talk
-	err = ftp.Noop()
-	if err != nil && strings.HasPrefix(err.Error(), "220") {
+	code, _ = ftp.RawCmd("NOOP")
+
+	if code == 220 || code == 530 {
 		// Maybe with another Noop the server will ask us to login?
-		err = ftp.Noop()
-		if err != nil && strings.HasPrefix(err.Error(), "530") {
+		code, _ = ftp.RawCmd("NOOP")
+		if code == 530 {
 			// ok, let's login
-
-			//ftp.Login(username, password)
-
-			if _, err = ftp.cmd("530", "USER %s", username); err != nil {
-				return
-			}
-			if _, err = ftp.cmd("230", "PASS %s", password); err != nil {
-				return
+			code, _ = ftp.RawCmd("USER %s", username)
+			code, _ = ftp.RawCmd("USER %s", username)
+			if code == 331 {
+				// user accepted, password required
+				code, _ = ftp.RawCmd("PASS %s", password)
+				if code == 230 {
+					return
+				}
 			}
 		}
 
