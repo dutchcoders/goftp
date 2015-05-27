@@ -429,6 +429,10 @@ func (ftp *FTP) Retr(path string, retrFn RetrFunc) (s string, err error) {
 	return
 }
 
+/*func GetFilesList(path string) (files []string, err error) {
+
+}*/
+
 // list the path (or current directory)
 func (ftp *FTP) List(path string) (files []string, err error) {
 	if err = ftp.Type("A"); err != nil {
