@@ -3,13 +3,6 @@ goftp
 
 Golang FTP library with Walk support.
 
-## About this fork.
-
-This is Vincenzo La Spesa’s fork of the goftp package.
-I’m trying to fix some bug of the original lib with ftp servers that send non-standard welcome messages.
-
-**this fork contains unstable code** 
-
 ## Features
 
 * AUTH TLS support

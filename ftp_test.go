@@ -9,8 +9,13 @@ var uglyServer string
 var badServer string
 
 func init() {
+	//ProFTPD 1.3.5 Server (Debian)
 	goodServer = "bo.mirror.garr.it:21"
+
+	//Symantec EMEA FTP Server
 	badServer = "ftp.packardbell.com:21"
+
+	//Unknown server
 	uglyServer = "ftp.musicbrainz.org:21"
 }
 
