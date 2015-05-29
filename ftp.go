@@ -111,6 +111,27 @@ func (ftp *FTP) Noop() (err error) {
 	return
 }
 
+// Send raw commands, return response as string and response code as int
+func (ftp *FTP) RawCmd(command string, args ...interface{}) (code int, line string) {
+	if ftp.debug {
+		log.Printf("Raw-> %s\n", fmt.Sprintf(command, args...), code)
+	}
+
+	code = -1
+	var err error
+	if err = ftp.send(command, args...); err != nil {
+		return code, ""
+	}
+	if line, err = ftp.receive(); err != nil {
+		return code, ""
+	}
+	code, err = strconv.Atoi(line[:3])
+	if ftp.debug {
+		log.Printf("Raw<-	<- %d \n", code)
+	}
+	return code, line
+}
+
 // private function to send command and compare return code with expects
 func (ftp *FTP) cmd(expects string, command string, args ...interface{}) (line string, err error) {
 	if err = ftp.send(command, args...); err != nil {
@@ -209,6 +230,19 @@ func (ftp *FTP) AuthTLS(config tls.Config) error {
 	return nil
 }
 
+// read all the buffered bytes and return
+func (ftp *FTP) ReadAndDiscard() (int, error) {
+	var i int
+	var err error
+	buffer_size := ftp.reader.Buffered()
+	for i = 0; i < buffer_size; i++ {
+		if _, err = ftp.reader.ReadByte(); err != nil {
+			return i, err
+		}
+	}
+	return i, err
+}
+
 // change transfer type
 func (ftp *FTP) Type(t string) error {
 	_, err := ftp.cmd("200", "TYPE %s", t)
@@ -233,12 +267,28 @@ func (ftp *FTP) receive() (string, error) {
 	}
 
 	if (len(line) >= 4) && (line[3] == '-') {
-		nextLine := ""
-		// This is a continuation of output line
-		nextLine, err = ftp.receive()
-		line = line + nextLine
+		//Multiline response
+		closingCode := line[:3] + " "
+		for {
+			str, err := ftp.receiveLine()
+			line = line + str
+			if err != nil {
+				return line, err
+			}
+			if len(str) < 4 {
+				if ftp.debug {
+					log.Println("Uncorrectly terminated response")
+				}
+				break
+			} else {
+				if str[:4] == closingCode {
+					break
+				}
+			}
+		}
 	}
-
+	ftp.ReadAndDiscard()
+	//fmt.Println(line)
 	return line, err
 }
 
@@ -398,6 +448,10 @@ func (ftp *FTP) Retr(path string, retrFn RetrFunc) (s string, err error) {
 	return
 }
 
+/*func GetFilesList(path string) (files []string, err error) {
+
+}*/
+
 // list the path (or current directory)
 func (ftp *FTP) List(path string) (files []string, err error) {
 	if err = ftp.Type("A"); err != nil {
@@ -468,6 +522,40 @@ func (ftp *FTP) List(path string) (files []string, err error) {
 	return
 }
 
+/*
+
+
+// login on server with strange login behavior
+func (ftp *FTP) SmartLogin(username string, password string) (err error) {
+	var code int
+	// Maybe the server has some useless words to say. Make him talk
+	code, _ = ftp.RawCmd("NOOP")
+
+	if code == 220 || code == 530 {
+		// Maybe with another Noop the server will ask us to login?
+		code, _ = ftp.RawCmd("NOOP")
+		if code == 530 {
+			// ok, let's login
+			code, _ = ftp.RawCmd("USER %s", username)
+			code, _ = ftp.RawCmd("NOOP")
+			if code == 331 {
+				// user accepted, password required
+				code, _ = ftp.RawCmd("PASS %s", password)
+				code, _ = ftp.RawCmd("PASS %s", password)
+				if code == 230 {
+					code, _ = ftp.RawCmd("NOOP")
+					return
+				}
+			}
+		}
+
+	}
+	// Nothing strange... let's try a normal login
+	return ftp.Login(username, password)
+}
+
+*/
+
 // login to the server
 func (ftp *FTP) Login(username string, password string) (err error) {
 	if _, err = ftp.cmd("331", "USER %s", username); err != nil {
@@ -499,9 +587,11 @@ func Connect(addr string) (*FTP, error) {
 	writer := bufio.NewWriter(conn)
 	reader := bufio.NewReader(conn)
 
-	reader.ReadString('\n')
+	//reader.ReadString('\n')
+	object := &FTP{conn: conn, addr: addr, reader: reader, writer: writer, debug: false}
+	object.receive()
 
-	return &FTP{conn: conn, addr: addr, reader: reader, writer: writer, debug: false}, nil
+	return object, nil
 }
 
 // connect to server, debug is ON
@@ -518,9 +608,10 @@ func ConnectDbg(addr string) (*FTP, error) {
 
 	var line string
 
-	line, err = reader.ReadString('\n')
+	object := &FTP{conn: conn, addr: addr, reader: reader, writer: writer, debug: false}
+	line, _ = object.receive()
 
 	log.Print(line)
 
-	return &FTP{conn: conn, addr: addr, reader: reader, writer: writer, debug: true}, nil
+	return object, nil
 }
