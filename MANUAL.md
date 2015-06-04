@@ -1,0 +1,379 @@
+# goftp documentation #
+
+## Public functions ##
+
+#### type FTP
+
+```go
+type FTP struct {
+}
+```
+
+
+#### func  Connect
+
+```go
+func Connect(addr string) (*FTP, error)
+```
+
+connect to server, debug is OFF
+
+#### func  ConnectDbg
+
+```go
+func ConnectDbg(addr string) (*FTP, error)
+```
+
+connect to server, debug is ON
+
+#### func (*FTP) AuthTLS
+
+```go
+func (ftp *FTP) AuthTLS(config tls.Config) error
+```
+
+secures the ftp connection by using TLS
+
+#### func (*FTP) Close
+
+```go
+func (ftp *FTP) Close()
+```
+
+#### func (*FTP) Cwd
+
+```go
+func (ftp *FTP) Cwd(path string) (err error)
+```
+
+change current path
+
+#### func (*FTP) Dele
+
+```go
+func (ftp *FTP) Dele(path string) (err error)
+```
+
+delete file
+
+#### func (*FTP) List
+
+```go
+func (ftp *FTP) List(path string) (files []string, err error)
+```
+
+list the path (or current directory)
+
+#### func (*FTP) Login
+
+```go
+func (ftp *FTP) Login(username string, password string) (err error)
+```
+
+login to the server
+
+#### func (*FTP) Mkd
+
+```go
+func (ftp *FTP) Mkd(path string) error
+```
+
+make directory
+
+#### func (*FTP) Noop
+
+```go
+func (ftp *FTP) Noop() (err error)
+```
+
+will send a NOOP (no operation) to the server
+
+#### func (*FTP) Pasv
+
+```go
+func (ftp *FTP) Pasv() (port int, err error)
+```
+
+enables passive data connection and returns port number
+
+#### func (*FTP) Pwd
+
+```go
+func (ftp *FTP) Pwd() (path string, err error)
+```
+
+get current path
+
+#### func (*FTP) Quit
+
+```go
+func (ftp *FTP) Quit() (err error)
+```
+
+send quit to the server and close the connection
+
+#### func (*FTP) RawCmd
+
+```go
+func (ftp *FTP) RawCmd(command string, args ...interface{}) (code int, line string)
+```
+
+Send raw commands, return response as string and response code as int
+
+#### func (*FTP) ReadAndDiscard
+
+```go
+func (ftp *FTP) ReadAndDiscard() (int, error)
+```
+
+read all the buffered bytes and return
+
+#### func (*FTP) Rename
+
+```go
+func (ftp *FTP) Rename(from string, to string) (err error)
+```
+
+rename file
+
+#### func (*FTP) Retr
+
+```go
+func (ftp *FTP) Retr(path string, retrFn RetrFunc) (s string, err error)
+```
+
+retrieves file
+
+#### func (*FTP) Stor
+
+```go
+func (ftp *FTP) Stor(path string, r io.Reader) (err error)
+```
+
+upload file
+
+#### func (*FTP) Type
+
+```go
+func (ftp *FTP) Type(t string) error
+```
+
+change transfer type
+
+#### func (*FTP) Walk
+
+```go
+func (ftp *FTP) Walk(path string, walkFn WalkFunc) (err error)
+```
+
+walks recursively through path and call walkfunc for each file
+
+#### type RetrFunc
+
+```go
+type RetrFunc func(r io.Reader) error
+```
+
+
+#### type WalkFunc
+
+```go
+type WalkFunc func(path string, info os.FileMode, err error) error
+```
+
+---
+
+## Notes on the different list commands for ftp ##
+
+This is a small review of how FTP listing commands actually work in practice.
+A more detailed description of the FTP protocols can be found in the following links:
+
+
+
+1. [http://cr.yp.to/ftp.html](http://cr.yp.to/ftp.html "http://cr.yp.to/ftp.html") (D. J. Bernstein's FTP Reference )
+2. [https://tools.ietf.org/pdf/rfc959.pdf](https://tools.ietf.org/pdf/rfc959.pdf "https://tools.ietf.org/pdf/rfc959.pdf") (RFC959)
+
+### How do I know which commands the target server supports? ###
+
+The first thing to do is trying the FEAT ftp command.
+
+[https://tools.ietf.org/html/rfc2389#section-3.2](https://tools.ietf.org/html/rfc2389#section-3.2 "https://tools.ietf.org/html/rfc2389#section-3.2")
+
+While not absolutely necessary, FEAT will help reduce unnecessary traffic between the user-PI and server PI as more extensions may be introduced in the future.  
+
+If no mechanism existed for this, a user-FTP process would have to try each
+extension in turn resulting in a series of exchanges between the user-PI and server-PI.  Apart from being possibly wasteful, this procedure may not always be possible, as issuing of a command just to determine if it is supported or not may have some effect that is not desired.
+
+FEAT it will output like this:
+
+    211-Extensions supported:
+      MLST size*;create;modify*;perm;media-type
+      SIZE
+      COMPRESSION
+      MDTM
+    211 END
+
+
+### MLSD ###
+It's the preferred way to obtain directory listing in machine readable format.
+It'll output one line per file, formatted like this:
+( this is a ProFTPD response )
+
+	modify=20081125111318;perm=adfr;size=24;type=OS.unix=symlink;unique=FE0BU200059DA;UNIX.group=0;UNIX.mode=0777;UNIX.owner=0; linux
+
+or like this
+
+	size=0;type=dir;perm=el;modify=20020409191530; bin
+	size=3919312;type=file;perm=r;modify=20000310140400; bar.txt
+	size=6686176;type=file;perm=r;modify=20001215181000; baz.txt
+	size=3820092;type=file;perm=r;modify=20000310140300; foo.txt
+	size=27439;type=file;perm=r;modify=20020923151312; foo.zip
+
+The order of fields is not fixed, but it's very easy to parse each line to a dictionary
+
+### NLST ###
+
+ The difference between LIST and NLST is that NLST returns a compressed form of the directory, showing only the name of each file, while LIST returns the entire directory.
+
+The NLST format consists of a sequence of abbreviated pathnames. Each pathname is terminated by \015\012, without regard to the current binary flag. If an abbreviated pathname starts with a slash, it represents the pathname obtained by replacing each \000 by \012. If an abbreviated pathname does not start with a slash, it represents the pathname obtained by concatenating
+
+1.     the pathname of the directory;
+1.     a slash, if the pathname of the directory does not end with a slash; and
+1.     the abbreviated pathname, with each \000 replaced by \012. 
+
+For example, if a directory /pub produces foo\015\012bar\015\012 under NLST, it refers to the pathnames /pub/foo and /pub/bar. 
+
+### EPLF ###
+EPLF stands for "Easily Parsed LIST Format", it was designed in 1996 by D. J. Bernstein
+
+EPLF was designed to
+
+1.     reliably communicate the information needed by clients;
+2.     make client and server implementation as easy as possible; and
+3.     be readable to humans, when readability does not complicate implementations. 
+
+Output will be formatted like this:
+
+     +i8388621.48594,m825718503,r,s280, djb.html
+     +i8388621.50690,m824255907,/, 514
+     +i8388621.48598,m824253270,r,s612, 514.html
+ 
+
+An EPLF response to LIST is a series of lines, each line specifying one file. Each line contains
+
+1.     a plus sign (\053);
+2.     a series of facts about the file;
+3.     a tab (\011);
+4.     an abbreviated pathname; and
+5.     \015\012. 
+(The terminating \015\012 does not depend on the binary flag.)
+
+ Each fact is zero or more bytes of information, terminated by a comma and not containing any tabs. Facts may appear in any order. Each fact appears at most once.
+
+Facts have the general format xy, where x is one of the following strings:
+
+1.     r: If this file's pathname is supplied as a RETR parameter, the RETR may succeed. The server is required to use an empty y. The server must supply this fact unless it is confident that (because of file type problems, permission problems, etc.) there's no point in the client sending RETR. Mirroring clients can save time by issuing RETR requests only for files where this fact is supplied. The presence of r does not guarantee that RETR will succeed: for example, the file may be removed or renamed, or the RETR may suffer a temporary failure.
+1.     /: If this file's pathname is supplied as a CWD parameter, the CWD may succeed. The server is required to use an empty y. As with r, the server must supply this fact unless it is confident that there's no point in the client sending CWD. Indexing clients can save time by issuing CWD requests only for files where this fact is supplied. The presence of / does not guarantee that CWD will succeed.
+1.     s: The size of this file is y. The server is required to provide a sequence of one or more ASCII digits in y, specifying a number. If the file is retrieved as a binary file and is not modified, it will contain exactly y bytes. This fact is optional; it should not be supplied for files that can never be retrieved, or for files whose size is constantly changing. Clients can use this fact to preallocate space.
+1.     m: This file was last modified at y. The server is required to provide a sequence of one or more ASCII digits in y, specifying a number of seconds, real time, since the UNIX epoch at the beginning of 1970 GMT. This fact is optional; it should not be supplied by servers that do not know the time in GMT, and it should not be supplied for files that have been modified more recently than one minute ago. (It also cannot be supplied for files last modified before 1970.) Mirroring clients can save time by skipping files whose modification time has not changed since the previous mirror.
+1.     i: This file has identifier y. If two files on the same FTP server (not necessarily in the same LIST response) have the same identifiers then they have the same contents: a RETR of each file will produce the same results, for example, and a CWD to each file will produce the same results in a subsequent RETR or LIST. (Under UNIX, for example, the server could use dev.ino as an identifier, where dev and ino are the device number and inode number of the file as returned by stat(). Note that lstat() is not a good idea for FTP directory listings.) Indexing clients can use this fact to avoid searching the same directory twice; mirroring clients can use this fact to avoid retrieving the same file twice. This fact is optional, but high-quality servers will always supply it at least for directories so that indexing programs can avoid CWD loops.
+1.     up: The client may use SITE CHMOD to change the UNIX permission bits of this file. The server must provide three ASCII digits in y, in octal, showing the current permission bits. 
+
+
+Modification times are expressed as second counters rather than calendar dates and times, for example, because second counters are much easier to generate and parse, making it more likely that browsers will display times in the viewer's time zone and native language. 
+
+
+References: [http://cr.yp.to/ftp/list/eplf.html](http://cr.yp.to/ftp/list/eplf.html)
+
+
+### LIST ###
+List is the original way to do listing on ftp.
+It's intended for human readable format.
+The output format is not standard.
+It may vary from the NLST format to something like this:
+
+	-rw-r--r--   1 aokur    (?)            17 Jan  5  2010 fcheck.js
+
+The LIST format varies widely from server to server. The most common format is /bin/ls format, which is difficult to parse with even moderate reliability. This poses a serious problem for clients that need more information than names.
+
+---
+
+## Sample Code
+
+```go
+package main
+		
+		import (
+		    "github.com/dutchcoders/goftp"
+		    "crypto/tls"
+		)
+		
+		func main() {
+		    var err error
+		    var ftp *goftp.FTP
+		
+		    // For debug messages: goftp.ConnectDbg("ftp.server.com:21")
+		    if ftp, err = goftp.Connect("ftp.server.com:21"); err != nil {
+		        panic(err)
+		    }
+		
+		    defer ftp.Close()
+		
+		    config := tls.Config{
+		            InsecureSkipVerify: true,
+		            ClientAuth:         tls.RequestClientCert,
+		    }
+		
+		    if err = ftp.AuthTLS(config); err != nil {
+		            panic(err)
+		    }
+		
+		    if err = ftp.Login("username", "password"); err != nil {
+		        panic(err)
+		    }
+		
+		    if err = ftp.Cwd("/"); err != nil {
+		        panic(err)
+		    }
+		
+		    var curpath string
+		    if curpath, err = ftp.Pwd("/"); err != nil {
+		        panic(err)
+		    }
+		
+		    fmt.Printf("Current path: %s", curpath)
+		
+		    var files []string
+		    if files, err = ftp.List(""); err != nil {
+		        panic(err)
+		    }
+		
+		    fmt.Println(files)
+		
+		    if file, err := os.Open("/tmp/test.txt"); err!=nil {
+		        panic(err)
+		    }
+		
+		    if err := ftp.Stor("/test.txt", file); err!=nil {
+		        panic(err)
+		    }
+		
+		    err = ftp.Walk("/", func(path string, info os.FileMode, err error) error {
+		        w := &bytes.Buffer{}
+		
+		        _, err = ftp.Retr(path, func(r io.Reader) error {
+		            var hasher = sha256.New()
+		            if _, err = io.Copy(hasher, r); err != nil {
+		                return err
+		            }
+		
+		            hash := fmt.Sprintf("%s %x", path, sha256.Sum256(nil))
+		            fmt.Println(hash)
+		
+		            return err
+		        })
+		
+		        return nil
+		    })
+		}
+```
