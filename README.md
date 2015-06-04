@@ -3,6 +3,8 @@ goftp
 
 Golang FTP library with Walk support.
 
+This page only contains a saple. For a more detailed documention please refer to the [MANUAL](./MANUAL.md).
+
 ## Features
 
 * AUTH TLS support
@@ -90,6 +92,7 @@ Golang FTP library with Walk support.
 Contributions are welcome.
 
 * Sourav Datta: for his work on the anonymous user login and multiline return status.
+* Vincenzo La Spesa: for his work on resolving login issues with specific ftp servers
 
 
 ## Creators

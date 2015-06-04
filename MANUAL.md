@@ -214,7 +214,7 @@ FEAT it will output like this:
     211 END
 
 
-## MLSD ##
+### MLSD ###
 It's the preferred way to obtain directory listing in machine readable format.
 It'll output one line per file, formatted like this:
 ( this is a ProFTPD response )
@@ -231,7 +231,7 @@ or like this
 
 The order of fields is not fixed, but it's very easy to parse each line to a dictionary
 
-## NLST ##
+### NLST ###
 
  The difference between LIST and NLST is that NLST returns a compressed form of the directory, showing only the name of each file, while LIST returns the entire directory.
 
@@ -243,7 +243,7 @@ The NLST format consists of a sequence of abbreviated pathnames. Each pathname i
 
 For example, if a directory /pub produces foo\015\012bar\015\012 under NLST, it refers to the pathnames /pub/foo and /pub/bar. 
 
-## EPLF ##
+### EPLF ###
 EPLF stands for "Easily Parsed LIST Format", it was designed in 1996 by D. J. Bernstein
 
 EPLF was designed to
@@ -286,7 +286,7 @@ Modification times are expressed as second counters rather than calendar dates a
 References: [http://cr.yp.to/ftp/list/eplf.html](http://cr.yp.to/ftp/list/eplf.html)
 
 
-## LIST ##
+### LIST ###
 List is the original way to do listing on ftp.
 It's intended for human readable format.
 The output format is not standard.
@@ -295,3 +295,85 @@ It may vary from the NLST format to something like this:
 	-rw-r--r--   1 aokur    (?)            17 Jan  5  2010 fcheck.js
 
 The LIST format varies widely from server to server. The most common format is /bin/ls format, which is difficult to parse with even moderate reliability. This poses a serious problem for clients that need more information than names.
+
+---
+
+## Sample Code
+
+```go
+package main
+		
+		import (
+		    "github.com/dutchcoders/goftp"
+		    "crypto/tls"
+		)
+		
+		func main() {
+		    var err error
+		    var ftp *goftp.FTP
+		
+		    // For debug messages: goftp.ConnectDbg("ftp.server.com:21")
+		    if ftp, err = goftp.Connect("ftp.server.com:21"); err != nil {
+		        panic(err)
+		    }
+		
+		    defer ftp.Close()
+		
+		    config := tls.Config{
+		            InsecureSkipVerify: true,
+		            ClientAuth:         tls.RequestClientCert,
+		    }
+		
+		    if err = ftp.AuthTLS(config); err != nil {
+		            panic(err)
+		    }
+		
+		    if err = ftp.Login("username", "password"); err != nil {
+		        panic(err)
+		    }
+		
+		    if err = ftp.Cwd("/"); err != nil {
+		        panic(err)
+		    }
+		
+		    var curpath string
+		    if curpath, err = ftp.Pwd("/"); err != nil {
+		        panic(err)
+		    }
+		
+		    fmt.Printf("Current path: %s", curpath)
+		
+		    var files []string
+		    if files, err = ftp.List(""); err != nil {
+		        panic(err)
+		    }
+		
+		    fmt.Println(files)
+		
+		    if file, err := os.Open("/tmp/test.txt"); err!=nil {
+		        panic(err)
+		    }
+		
+		    if err := ftp.Stor("/test.txt", file); err!=nil {
+		        panic(err)
+		    }
+		
+		    err = ftp.Walk("/", func(path string, info os.FileMode, err error) error {
+		        w := &bytes.Buffer{}
+		
+		        _, err = ftp.Retr(path, func(r io.Reader) error {
+		            var hasher = sha256.New()
+		            if _, err = io.Copy(hasher, r); err != nil {
+		                return err
+		            }
+		
+		            hash := fmt.Sprintf("%s %x", path, sha256.Sum256(nil))
+		            fmt.Println(hash)
+		
+		            return err
+		        })
+		
+		        return nil
+		    })
+		}
+```
