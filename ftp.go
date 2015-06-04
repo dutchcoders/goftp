@@ -53,7 +53,8 @@ func parseLine(line string) (perm string, t string, filename string) {
 }
 
 // walks recursively through path and call walkfunc for each file
-func (ftp *FTP) Walk(path string, walkFn WalkFunc) (err error) {
+// the optional parameter deepLimit controls the max level of recursion
+func (ftp *FTP) Walk(path string, walkFn WalkFunc, deepLimit ...int) (err error) {
 	/*
 		if err = walkFn(path, os.ModeDir, nil); err != nil {
 			if err == filepath.SkipDir {
@@ -61,6 +62,13 @@ func (ftp *FTP) Walk(path string, walkFn WalkFunc) (err error) {
 			}
 		}
 	*/
+
+	deep := -1
+	if len(deepLimit) > 0 {
+		log.Printf("Deep limit is: '%d'\n", deepLimit[0])
+		deep = deepLimit[0]
+	}
+
 	if ftp.debug {
 		log.Printf("Walking: '%s'\n", path)
 	}
@@ -79,12 +87,22 @@ func (ftp *FTP) Walk(path string, walkFn WalkFunc) (err error) {
 			if subpath == "." {
 			} else if subpath == ".." {
 			} else {
-				if err = ftp.Walk(path+subpath+"/", walkFn); err != nil {
-					return
+				if deep > 0 {
+					deep = deep - 1
+					err = ftp.Walk(path+subpath+"/", walkFn, deep)
+					if err != nil {
+						return
+					}
+				} else if deep < 0 {
+					err = ftp.Walk(path+subpath+"/", walkFn)
+					if err != nil {
+						return
+					}
 				}
 			}
 		case "file":
-			if err = walkFn(path+subpath, os.FileMode(0), nil); err != nil {
+			err = walkFn(path+subpath, os.FileMode(0), nil)
+			if err != nil {
 				return
 			}
 		}
@@ -109,6 +127,55 @@ func (ftp *FTP) Quit() (err error) {
 func (ftp *FTP) Noop() (err error) {
 	_, err = ftp.cmd("200", "NOOP")
 	return
+}
+
+// Send a raw command, open an active connection, retrieve the response, close the connection, return the response
+func (ftp *FTP) RawActiveCmd(command string, args ...interface{}) (code int, response []string) {
+	var port int
+	var pconn net.Conn
+	var line string
+	var err error
+
+	// get the port
+	if port, err = ftp.Pasv(); err != nil {
+		return
+	}
+
+	//send the request
+	code, line = ftp.RawCmd(command, args)
+	if code < 200 || code > 299 {
+		return code, nil
+	}
+
+	//open a connection to retrieve the response
+	if pconn, err = ftp.newConnection(port); err != nil {
+		return -1, nil
+	}
+	reader := bufio.NewReader(pconn)
+
+	for {
+		line, err = reader.ReadString('\n')
+
+		if err == io.EOF {
+			break
+		} else if err != nil {
+			return
+		}
+
+		response = append(response, string(line))
+	}
+
+	pconn.Close()
+
+	// Check response status on primary connection
+	if line, err = ftp.receive(); err != nil {
+		return -2, nil
+	}
+	code, err = strconv.Atoi(line[:3])
+	if code < 200 || code > 299 {
+		return code, nil
+	}
+	return code, response
 }
 
 // Send raw commands, return response as string and response code as int
@@ -432,80 +499,6 @@ func (ftp *FTP) Retr(path string, retrFn RetrFunc) (s string, err error) {
 
 	if err = retrFn(pconn); err != nil {
 		return
-	}
-
-	pconn.Close()
-
-	if line, err = ftp.receive(); err != nil {
-		return
-	}
-
-	if !strings.HasPrefix(line, "226") {
-		err = errors.New(line)
-		return
-	}
-
-	return
-}
-
-/*func GetFilesList(path string) (files []string, err error) {
-
-}*/
-
-// list the path (or current directory)
-func (ftp *FTP) List(path string) (files []string, err error) {
-	if err = ftp.Type("A"); err != nil {
-		return
-	}
-
-	var port int
-	if port, err = ftp.Pasv(); err != nil {
-		return
-	}
-
-	// check if MLSD works
-	if err = ftp.send("MLSD %s", path); err != nil {
-	}
-
-	var pconn net.Conn
-	if pconn, err = ftp.newConnection(port); err != nil {
-		return
-	}
-
-	var line string
-	if line, err = ftp.receive(); err != nil {
-		return
-	}
-
-	if !strings.HasPrefix(line, "150") {
-		// MLSD failed, lets try LIST
-		if err = ftp.send("LIST %s", path); err != nil {
-			return
-		}
-
-		if line, err = ftp.receive(); err != nil {
-			return
-		}
-
-		if !strings.HasPrefix(line, "150") {
-			// Really list is not working here
-			err = errors.New(line)
-			return
-		}
-	}
-
-	reader := bufio.NewReader(pconn)
-
-	for {
-		line, err = reader.ReadString('\n')
-
-		if err == io.EOF {
-			break
-		} else if err != nil {
-			return
-		}
-
-		files = append(files, string(line))
 	}
 
 	pconn.Close()

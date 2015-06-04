@@ -90,6 +90,7 @@ Golang FTP library with Walk support.
 Contributions are welcome.
 
 * Sourav Datta: for his work on the anonymous user login and multiline return status.
+* Vincenzo La Spesa: for his work on resolving login issues with specific ftp servers
 
 
 ## Creators
@@ -102,4 +103,3 @@ Contributions are welcome.
 
 Code and documentation copyright 2011-2014 Remco Verhoef.
 Code released under [the MIT license](LICENSE).
-
