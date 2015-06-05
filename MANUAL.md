@@ -1,5 +1,39 @@
 # goftp documentation #
 
+**Table of Contents**  (*generated with [DocToc](http://doctoc.herokuapp.com/)*)
+
+- [Public functions](#)
+		- [type FTP](#)
+		- [func  Connect](#)
+		- [func  ConnectDbg](#)
+		- [func (*FTP) AuthTLS](#)
+		- [func (*FTP) Close](#)
+		- [func (*FTP) Cwd](#)
+		- [func (*FTP) Dele](#)
+		- [func (*FTP) List](#)
+		- [func (*FTP) Login](#)
+		- [func (*FTP) Mkd](#)
+		- [func (*FTP) Noop](#)
+		- [func (*FTP) Pasv](#)
+		- [func (*FTP) Pwd](#)
+		- [func (*FTP) Quit](#)
+		- [func (*FTP) RawCmd](#)
+		- [func (*FTP) ReadAndDiscard](#)
+		- [func (*FTP) Rename](#)
+		- [func (*FTP) Retr](#)
+		- [func (*FTP) Stor](#)
+		- [func (*FTP) Type](#)
+		- [func (*FTP) Walk](#)
+		- [type RetrFunc](#)
+		- [type WalkFunc](#)
+- [Notes on the different list commands for ftp](#)
+	- [How do I know which commands the target server supports?](#)
+	- [MLSD](#)
+	- [NLST](#)
+	- [EPLF](#)
+	- [LIST](#)
+- [Sample Code](#)
+
 ## Public functions ##
 
 #### type FTP
@@ -192,6 +226,7 @@ A more detailed description of the FTP protocols can be found in the following l
 
 1. [http://cr.yp.to/ftp.html](http://cr.yp.to/ftp.html "http://cr.yp.to/ftp.html") (D. J. Bernstein's FTP Reference )
 2. [https://tools.ietf.org/pdf/rfc959.pdf](https://tools.ietf.org/pdf/rfc959.pdf "https://tools.ietf.org/pdf/rfc959.pdf") (RFC959)
+3. [http://www.nsftools.com/tips/RawFTP.htm](http://www.nsftools.com/tips/RawFTP.htm) (NSF Tools - List of raw FTP commands)
 
 ### How do I know which commands the target server supports? ###
 
@@ -215,6 +250,8 @@ FEAT it will output like this:
 
 
 ### MLSD ###
+**This format is supported in goftp**
+
 It's the preferred way to obtain directory listing in machine readable format.
 It'll output one line per file, formatted like this:
 ( this is a ProFTPD response )
@@ -233,7 +270,9 @@ The order of fields is not fixed, but it's very easy to parse each line to a dic
 
 ### NLST ###
 
- The difference between LIST and NLST is that NLST returns a compressed form of the directory, showing only the name of each file, while LIST returns the entire directory.
+This format is **NOT yet** supported in goftp
+
+The difference between LIST and NLST is that NLST returns a compressed form of the directory, showing only the name of each file, while LIST returns the entire directory.
 
 The NLST format consists of a sequence of abbreviated pathnames. Each pathname is terminated by \015\012, without regard to the current binary flag. If an abbreviated pathname starts with a slash, it represents the pathname obtained by replacing each \000 by \012. If an abbreviated pathname does not start with a slash, it represents the pathname obtained by concatenating
 
@@ -244,6 +283,9 @@ The NLST format consists of a sequence of abbreviated pathnames. Each pathname i
 For example, if a directory /pub produces foo\015\012bar\015\012 under NLST, it refers to the pathnames /pub/foo and /pub/bar. 
 
 ### EPLF ###
+
+This format is **NOT yet** supported in goftp
+
 EPLF stands for "Easily Parsed LIST Format", it was designed in 1996 by D. J. Bernstein
 
 EPLF was designed to
@@ -287,6 +329,9 @@ References: [http://cr.yp.to/ftp/list/eplf.html](http://cr.yp.to/ftp/list/eplf.h
 
 
 ### LIST ###
+
+__Only__ standard unix LS is supported in goftp 
+
 List is the original way to do listing on ftp.
 It's intended for human readable format.
 The output format is not standard.
@@ -295,6 +340,20 @@ It may vary from the NLST format to something like this:
 	-rw-r--r--   1 aokur    (?)            17 Jan  5  2010 fcheck.js
 
 The LIST format varies widely from server to server. The most common format is /bin/ls format, which is difficult to parse with even moderate reliability. This poses a serious problem for clients that need more information than names.
+
+A standard response in /bin/ls format will line contains
+
+
+1. - for a regular file or d for a directory;
+2. the literal string rw-r--r-- 1 owner group for a regular file, or rwxr-xr-x 1 owner group for a directory;
+3. the file size in decimal right-justified in a 13-byte field;
+4. a three-letter month name, first letter capitalized;
+5. a day number right-justified in a 3-byte field;
+6. a space and a 2-digit hour number;
+7. a colon and a 2-digit minute number;
+8. a space and the abbreviated pathname of the file. 
+
+References: [http://cr.yp.to/ftp/list/binls.html](http://cr.yp.to/ftp/list/binls.html)
 
 ---
 

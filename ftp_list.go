@@ -75,7 +75,7 @@ func (ftp *FTP) List(path string) (files []string, err error) {
 
 	reader := bufio.NewReader(pconn)
 
-	files, err = ftp.parseMLSD(reader)
+	files, err = ftp.splitLines(reader)
 
 	if err != nil {
 		return nil, err
@@ -95,7 +95,7 @@ func (ftp *FTP) List(path string) (files []string, err error) {
 	return
 }
 
-func (ftp *FTP) parseMLSD(reader *bufio.Reader) (files []string, err error) {
+func (ftp *FTP) splitLines(reader *bufio.Reader) (files []string, err error) {
 	var line string
 	for {
 		line, err = reader.ReadString('\n')

@@ -129,12 +129,13 @@ func (ftp *FTP) Noop() (err error) {
 	return
 }
 
-// Send a raw command, open an active connection, retrieve the response, close the connection, return the response
+// Open an active connection, send a raw command, retrieve the response, close the connection, return the response
 func (ftp *FTP) RawActiveCmd(command string, args ...interface{}) (code int, response []string) {
 	var port int
 	var pconn net.Conn
 	var line string
 	var err error
+	//var msg string
 
 	// get the port
 	if port, err = ftp.Pasv(); err != nil {
@@ -142,39 +143,42 @@ func (ftp *FTP) RawActiveCmd(command string, args ...interface{}) (code int, res
 	}
 
 	//send the request
-	code, line = ftp.RawCmd(command, args)
-	if code < 200 || code > 299 {
-		return code, nil
+	err = ftp.send(command, args)
+	if err != nil {
+		return -2, nil
 	}
 
-	//open a connection to retrieve the response
+	//open a connection to retrieve data
 	if pconn, err = ftp.newConnection(port); err != nil {
 		return -1, nil
 	}
+
+	//retrieve response
+	if line, err = ftp.receive(); err != nil {
+		return -3, nil
+	}
+	fmt.Println(line)
+	code, err = strconv.Atoi(line[:3])
+	if err != nil {
+		return -4, nil
+	}
+
 	reader := bufio.NewReader(pconn)
 
 	for {
-		line, err = reader.ReadString('\n')
+		line, err = reader.ReadString(0)
 
 		if err == io.EOF {
 			break
 		} else if err != nil {
-			return
+			pconn.Close()
+			return -5, nil
 		}
-
+		fmt.Printf("->		->		%s\n", line)
 		response = append(response, string(line))
 	}
 
 	pconn.Close()
-
-	// Check response status on primary connection
-	if line, err = ftp.receive(); err != nil {
-		return -2, nil
-	}
-	code, err = strconv.Atoi(line[:3])
-	if code < 200 || code > 299 {
-		return code, nil
-	}
 	return code, response
 }
 

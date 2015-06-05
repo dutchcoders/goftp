@@ -31,7 +31,7 @@ func active(host string) (msg string) {
 		return "Can't login ->" + err.Error()
 	}
 	code, response := connection.RawActiveCmd("LIST .")
-	if code < 200 {
+	if code < 0 || code > 299 {
 		return fmt.Sprintf("Can't list -> %d", code)
 	}
 	fmt.Println(response)
@@ -50,9 +50,13 @@ func standard(host string) (msg string) {
 	if err = connection.Login("anonymous", "anonymous"); err != nil {
 		return "Can't login ->" + err.Error()
 	}
-	if _, err = connection.List(""); err != nil {
-		return "Can't list ->" + err.Error()
+	code, str := connection.RawCmd("FEAT")
+	if code < 0 || code > 299 {
+		return fmt.Sprintf("Can't FEAT -> %d", code)
+	} else {
+		fmt.Println(str)
 	}
+
 	connection.Close()
 	return ""
 }
@@ -127,7 +131,7 @@ func TestWalk_ugly(t *testing.T) {
 }
 
 func TestActiveCommand(t *testing.T) {
-	str := active(uglyServer)
+	str := active(goodServer)
 	if len(str) > 0 {
 		t.Error(str)
 	}
