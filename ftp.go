@@ -26,7 +26,15 @@ type FTP struct {
 
 	reader *bufio.Reader
 	writer *bufio.Writer
+
+	supportedfeatures uint32
 }
+
+const (
+	MLSD = 1
+	NLST = 2
+	EPLF = 4
+)
 
 func (ftp *FTP) Close() {
 	ftp.conn.Close()
@@ -130,7 +138,7 @@ func (ftp *FTP) Noop() (err error) {
 }
 
 // Open an active connection, send a raw command, retrieve the response, close the connection, return the response
-func (ftp *FTP) RawActiveCmd(command string, args ...interface{}) (code int, response []string) {
+func (ftp *FTP) RawPassiveCmd(command string) (code int, response []string) {
 	var port int
 	var pconn net.Conn
 	var line string
@@ -139,34 +147,36 @@ func (ftp *FTP) RawActiveCmd(command string, args ...interface{}) (code int, res
 
 	// get the port
 	if port, err = ftp.Pasv(); err != nil {
-		return
+		return -1, nil
 	}
 
 	//send the request
-	err = ftp.send(command, args)
+	err = ftp.send(command)
 	if err != nil {
 		return -2, nil
 	}
 
 	//open a connection to retrieve data
 	if pconn, err = ftp.newConnection(port); err != nil {
-		return -1, nil
+		return -3, nil
 	}
 
 	//retrieve response
 	if line, err = ftp.receive(); err != nil {
-		return -3, nil
+		return -4, nil
 	}
-	fmt.Println(line)
 	code, err = strconv.Atoi(line[:3])
 	if err != nil {
-		return -4, nil
+		return -5, nil
+	}
+	if code > 299 {
+		return code, nil
 	}
 
 	reader := bufio.NewReader(pconn)
 
 	for {
-		line, err = reader.ReadString(0)
+		line, err = reader.ReadString('\n')
 
 		if err == io.EOF {
 			break
@@ -174,11 +184,19 @@ func (ftp *FTP) RawActiveCmd(command string, args ...interface{}) (code int, res
 			pconn.Close()
 			return -5, nil
 		}
-		fmt.Printf("->		->		%s\n", line)
 		response = append(response, string(line))
 	}
 
 	pconn.Close()
+
+	if line, err = ftp.receive(); err != nil {
+		return -6, nil
+	}
+
+	if code > 299 {
+		return code, nil
+	}
+
 	return code, response
 }
 
@@ -519,40 +537,6 @@ func (ftp *FTP) Retr(path string, retrFn RetrFunc) (s string, err error) {
 	return
 }
 
-/*
-
-
-// login on server with strange login behavior
-func (ftp *FTP) SmartLogin(username string, password string) (err error) {
-	var code int
-	// Maybe the server has some useless words to say. Make him talk
-	code, _ = ftp.RawCmd("NOOP")
-
-	if code == 220 || code == 530 {
-		// Maybe with another Noop the server will ask us to login?
-		code, _ = ftp.RawCmd("NOOP")
-		if code == 530 {
-			// ok, let's login
-			code, _ = ftp.RawCmd("USER %s", username)
-			code, _ = ftp.RawCmd("NOOP")
-			if code == 331 {
-				// user accepted, password required
-				code, _ = ftp.RawCmd("PASS %s", password)
-				code, _ = ftp.RawCmd("PASS %s", password)
-				if code == 230 {
-					code, _ = ftp.RawCmd("NOOP")
-					return
-				}
-			}
-		}
-
-	}
-	// Nothing strange... let's try a normal login
-	return ftp.Login(username, password)
-}
-
-*/
-
 // login to the server
 func (ftp *FTP) Login(username string, password string) (err error) {
 	if _, err = ftp.cmd("331", "USER %s", username); err != nil {
@@ -585,7 +569,7 @@ func Connect(addr string) (*FTP, error) {
 	reader := bufio.NewReader(conn)
 
 	//reader.ReadString('\n')
-	object := &FTP{conn: conn, addr: addr, reader: reader, writer: writer, debug: false}
+	object := &FTP{conn: conn, addr: addr, reader: reader, writer: writer, debug: false, supportedfeatures: 0}
 	object.receive()
 
 	return object, nil
@@ -605,7 +589,7 @@ func ConnectDbg(addr string) (*FTP, error) {
 
 	var line string
 
-	object := &FTP{conn: conn, addr: addr, reader: reader, writer: writer, debug: false}
+	object := &FTP{conn: conn, addr: addr, reader: reader, writer: writer, debug: false, supportedfeatures: 0}
 	line, _ = object.receive()
 
 	log.Print(line)

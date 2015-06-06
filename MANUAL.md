@@ -353,6 +353,24 @@ A standard response in /bin/ls format will line contains
 7. a colon and a 2-digit minute number;
 8. a space and the abbreviated pathname of the file. 
 
+So a regular expression for parsing this format could be:
+
+	([pbcdlfmpSs-])
+    (((r|-)(w|-)([xsStTL-]))((r|-)(w|-)([xsStTL-]))((r|-)(w|-)([xsStTL-])))\+?\s+
+    (?:(\d+)\s+)?
+    (\S+)\s+
+    (?:(\S+(?:\s\S+)*)\s+)?
+    (?:\d+,\s+)?
+    (\d+)\s+
+    ((?:\d+[-/]\d+[-/]\d+)|(?:\S+\s+\S+))\s+
+    (\d+(?::\d+)?)\s+
+    (\S*)(\s*.*)
+
+goftp will only recognize output that match this format.
+The expression in taken from the ASF's commons Java FTP LIST parser library.
+
+(Once at [http://svn.apache.org/repos/asf/commons/proper/net/trunk/src/java/org/apache/commons/net/ftp/](http://svn.apache.org/repos/asf/commons/proper/net/trunk/src/java/org/apache/commons/net/ftp/) but link appears to be dead)
+
 References: [http://cr.yp.to/ftp/list/binls.html](http://cr.yp.to/ftp/list/binls.html)
 
 ---

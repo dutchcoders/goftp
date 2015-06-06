@@ -3,18 +3,34 @@ package goftp
 import (
 	"bufio"
 	"errors"
+	"fmt"
 	"io"
 	"log"
 	"net"
 	"strings"
 )
 
-// list the path (or current directory)
+func (ftp *FTP) updateFeat() (features uint32) {
+	fmt.Println("Updating features list")
+	code, str := ftp.RawCmd("FEAT")
+	fmt.Println(str)
+	if code < 0 || code > 299 {
+		return 0
+	}
+	return 1
+}
+
+func (ftp *FTP) GetFilesList(path string) (files []string, directories []string, err error) {
+	ftp.updateFeat()
+	return
+}
+
+// list the path (or current directory). return raw listing, do not parse it.
 func (ftp *FTP) List(path string) (files []string, err error) {
-	mlsd := false
-	nlst := false
-	eplf := false
-	list := false
+	mlsd := true
+	nlst := true
+	eplf := true
+	list := true
 	//
 	if err = ftp.Type("A"); err != nil {
 		return
@@ -66,7 +82,7 @@ func (ftp *FTP) List(path string) (files []string, err error) {
 				if !eplf {
 					log.Printf("EPLF not supported")
 					if !list {
-						log.Printf("LIST not supported (this should not appen)")
+						log.Printf("LIST not supported (this should not appen!)")
 					}
 				}
 			}
