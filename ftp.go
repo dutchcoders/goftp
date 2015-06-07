@@ -31,9 +31,10 @@ type FTP struct {
 }
 
 const (
-	MLSD = 1
+	MLST = 1
 	NLST = 2
 	EPLF = 4
+	BAD  = 1 >> 32 // this server only supports LIST
 )
 
 func (ftp *FTP) Close() {

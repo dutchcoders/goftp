@@ -10,18 +10,44 @@ import (
 	"strings"
 )
 
-func (ftp *FTP) updateFeat() (features uint32) {
-	fmt.Println("Updating features list")
+func (ftp *FTP) getServerFeatures() (features uint32) {
+	features = 0
 	code, str := ftp.RawCmd("FEAT")
 	fmt.Println(str)
 	if code < 0 || code > 299 {
-		return 0
+		return BAD
 	}
-	return 1
+
+	lines := strings.Split(str, "\n")
+
+	for _, f := range lines {
+		if strings.Contains(f, "MLST") {
+			features = features | MLST
+		} else if strings.Contains(f, "NLST") {
+			features = features | NLST
+		} else if strings.Contains(f, "EPLF") {
+			features = features | EPLF
+		}
+	}
+
+	return features
 }
 
 func (ftp *FTP) GetFilesList(path string) (files []string, directories []string, err error) {
-	ftp.updateFeat()
+	if ftp.supportedfeatures == 0 {
+		ftp.supportedfeatures = ftp.getServerFeatures()
+	}
+	if ftp.supportedfeatures&MLST > 0 {
+		fmt.Println("Ma che bello, supporta MLST")
+	} else if ftp.supportedfeatures&EPLF > 0 {
+		fmt.Println("Ma che bello, supporta EPLF")
+	} else if ftp.supportedfeatures&NLST > 0 {
+		fmt.Println("Ma che bello, supporta NLST")
+	} else {
+		fmt.Println("Non ci rimane che LIST")
+	}
+	fmt.Println(ftp.supportedfeatures)
+
 	return
 }
 

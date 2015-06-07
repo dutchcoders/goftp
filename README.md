@@ -5,6 +5,8 @@ Golang FTP library with Walk support.
 
 This page only contains a saple. For a more detailed documention please refer to the [MANUAL](./MANUAL.md).
 
+**This fork contains unstable code, use at your own risk.**
+
 ## Features
 
 * AUTH TLS support
