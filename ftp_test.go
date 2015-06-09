@@ -30,7 +30,7 @@ func active(host string) (msg string) {
 	if err = connection.Login("anonymous", "anonymous"); err != nil {
 		return "Can't login ->" + err.Error()
 	}
-	code, response := connection.RawActiveCmd("LIST .")
+	code, response := connection.RawPassiveCmd("LIST .")
 	if code < 0 || code > 299 {
 		return fmt.Sprintf("Can't list -> %d", code)
 	}

@@ -21,11 +21,11 @@ func (ftp *FTP) getServerFeatures() (features uint32) {
 	lines := strings.Split(str, "\n")
 
 	for _, f := range lines {
-		if strings.Contains(f, "MLST") {
+		if (features&MLST == 0) && strings.Contains(f, "MLST") {
 			features = features | MLST
-		} else if strings.Contains(f, "NLST") {
+		} else if (features&NLST == 0) && strings.Contains(f, "NLST") {
 			features = features | NLST
-		} else if strings.Contains(f, "EPLF") {
+		} else if (features&EPLF == 0) && strings.Contains(f, "EPLF") {
 			features = features | EPLF
 		}
 	}
@@ -38,17 +38,30 @@ func (ftp *FTP) GetFilesList(path string) (files []string, directories []string,
 		ftp.supportedfeatures = ftp.getServerFeatures()
 	}
 	if ftp.supportedfeatures&MLST > 0 {
-		fmt.Println("Ma che bello, supporta MLST")
+		code, response := ftp.RawPassiveCmd("MLST " + path)
+		if code < 0 || code > 299 {
+			return nil, nil, errors.New("MLST did not work")
+		}
+		return parseMLST(response)
 	} else if ftp.supportedfeatures&EPLF > 0 {
-		fmt.Println("Ma che bello, supporta EPLF")
+		code, response := ftp.RawPassiveCmd("EPLF " + path)
+		if code < 0 || code > 299 {
+			return nil, nil, errors.New("EPLF did not work")
+		}
+		return parseEPLF(response)
 	} else if ftp.supportedfeatures&NLST > 0 {
-		fmt.Println("Ma che bello, supporta NLST")
+		code, response := ftp.RawPassiveCmd("NLST " + path)
+		if code < 0 || code > 299 {
+			return nil, nil, errors.New("NLST did not work")
+		}
+		return parseNLST(response)
 	} else {
-		fmt.Println("Non ci rimane che LIST")
+		code, response := ftp.RawPassiveCmd("MLST " + path)
+		if code < 0 || code > 299 {
+			return nil, nil, errors.New("LIST did not work")
+		}
+		return parseUnixLIST(response)
 	}
-	fmt.Println(ftp.supportedfeatures)
-
-	return
 }
 
 // list the path (or current directory). return raw listing, do not parse it.
@@ -151,4 +164,21 @@ func (ftp *FTP) splitLines(reader *bufio.Reader) (files []string, err error) {
 		files = append(files, string(line))
 	}
 	return files, nil
+}
+
+func parseLine_MLST(line string) (perm string, t string, filename string) {
+	for _, v := range strings.Split(line, ";") {
+		v2 := strings.Split(v, "=")
+
+		switch v2[0] {
+		case "perm":
+			perm = v2[1]
+		case "type":
+			t = v2[1]
+		default:
+			filename = v[1 : len(v)-2]
+		}
+	}
+
+	return
 }

@@ -44,23 +44,6 @@ func (ftp *FTP) Close() {
 type WalkFunc func(path string, info os.FileMode, err error) error
 type RetrFunc func(r io.Reader) error
 
-func parseLine(line string) (perm string, t string, filename string) {
-	for _, v := range strings.Split(line, ";") {
-		v2 := strings.Split(v, "=")
-
-		switch v2[0] {
-		case "perm":
-			perm = v2[1]
-		case "type":
-			t = v2[1]
-		default:
-			filename = v[1 : len(v)-2]
-		}
-	}
-
-	return
-}
-
 // walks recursively through path and call walkfunc for each file
 // the optional parameter deepLimit controls the max level of recursion
 func (ftp *FTP) Walk(path string, walkFn WalkFunc, deepLimit ...int) (err error) {
@@ -89,7 +72,7 @@ func (ftp *FTP) Walk(path string, walkFn WalkFunc, deepLimit ...int) (err error)
 	}
 
 	for _, line := range lines {
-		_, t, subpath := parseLine(line)
+		_, t, subpath := parseLine_MLST(line)
 
 		switch t {
 		case "dir":
