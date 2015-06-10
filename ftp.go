@@ -31,7 +31,7 @@ type FTP struct {
 }
 
 const (
-	MLST = 1
+	MLSD = 1
 	NLST = 2
 	EPLF = 4
 	BAD  = 1 >> 32 // this server only supports LIST
@@ -579,4 +579,74 @@ func ConnectDbg(addr string) (*FTP, error) {
 	log.Print(line)
 
 	return object, nil
+}
+
+// list the path (or current directory). return raw listing, do not parse it.
+func (ftp *FTP) List(path string) (files []string, err error) {
+	if err = ftp.Type("A"); err != nil {
+		return
+	}
+
+	var port int
+	if port, err = ftp.Pasv(); err != nil {
+		return
+	}
+
+	// check if MLSD works
+	if err = ftp.send("MLSD %s", path); err != nil {
+	}
+
+	var pconn net.Conn
+	if pconn, err = ftp.newConnection(port); err != nil {
+		return
+	}
+
+	var line string
+	if line, err = ftp.receive(); err != nil {
+		return
+	}
+
+	if !strings.HasPrefix(line, "150") {
+		// MLSD failed, lets try LIST
+		if err = ftp.send("LIST %s", path); err != nil {
+			return
+		}
+
+		if line, err = ftp.receive(); err != nil {
+			return
+		}
+
+		if !strings.HasPrefix(line, "150") {
+			// Really list is not working here
+			err = errors.New(line)
+			return
+		}
+	}
+
+	reader := bufio.NewReader(pconn)
+
+	for {
+		line, err = reader.ReadString('\n')
+
+		if err == io.EOF {
+			break
+		} else if err != nil {
+			return
+		}
+
+		files = append(files, string(line))
+	}
+
+	pconn.Close()
+
+	if line, err = ftp.receive(); err != nil {
+		return
+	}
+
+	if !strings.HasPrefix(line, "226") {
+		err = errors.New(line)
+		return
+	}
+
+	return
 }
