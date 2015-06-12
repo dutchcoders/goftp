@@ -64,7 +64,7 @@ func (ftp *FTP) GetFilesList(path string) (files []string, directories []string,
 	} else {
 		fmt.Println("Using LIST")
 		code, response := ftp.RawPassiveCmd("LIST " + path)
-		fmt.Println(response)
+		//fmt.Println(response)
 		if code < 0 || code > 299 {
 			return nil, nil, nil, errors.New("LIST did not work")
 		}
@@ -105,11 +105,10 @@ func (ftp *FTP) parseNLST(data []string, basePath string) (files []string, direc
 func (ftp *FTP) parseUnixLIST(data []string, basePath string) (files []string, directories []string, links []string, err error) {
 	var pattern = regexp.MustCompile(`([-ld])([-rwx]+)\s{2,}\d+\s(\d|\w+)\s{2,}(\(\?\)|\d+|\w+)\s{2,}(\d+)\s*(\w+\s*\d+\s*\d+\:*\d*)\s(\S+)`)
 	for _, line := range data {
-		fmt.Printf("looking at: %s \n", line)
 		match := pattern.FindStringSubmatch(line)
-		for i, val := range match {
+		/*for i, val := range match {
 			fmt.Printf("entry %d:%s\n", i, val)
-		}
+		}*/
 		if len(match) > 6 {
 			if match[1] == "-" { // a file
 				files = append(files, basePath+match[7])
