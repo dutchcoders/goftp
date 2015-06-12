@@ -220,6 +220,7 @@ type WalkFunc func(path string, info os.FileMode, err error) error
 # Appendix #
 
 This section contains information about the state of the lib development and the ftp protocol.
+It will provide a starting point for extending the lib with new features.
 
 ## Notes on the different list commands for ftp ##
 
@@ -358,6 +359,14 @@ or this
 	-rw-r--r--   1 0        0              61 Jun 12 05:00 v4v6
 	-rw-r--r--   1 0        0             166 Jul 24  2008 welcome.msg
 
+or this
+
+	lrwxrwxrwx    1 0        0              19 Apr 11  2009 debian -> ./pub/debian/debian
+	lrwxrwxrwx    1 0        0              20 Apr 11  2009 debian-cd -> ./pub/debian-cdimage
+	lrwxrwxrwx    1 0        0              20 Apr 11  2009 debian-cdimage -> ./pub/debian-cdimage
+	drwxr-xr-x    6 0        0            4096 Jun 08 17:09 pub
+	-rw-r--r--    1 0        0             819 Feb 03  2009 welcome.msg
+
 The LIST format varies widely from server to server. The most common format is /bin/ls format, which is difficult to parse with even moderate reliability. This poses a serious problem for clients that need more information than names.
 
 A standard response in /bin/ls format will line contains
@@ -374,11 +383,58 @@ A standard response in /bin/ls format will line contains
 
 So a regular expression for parsing this format could be:
 
-	\s*([-ld])([-rwx]+)\s{2,}\d+\s(\d|\w+)\s{2,}(\(\?\)|\d+)\s{2,}(\d+)\s*(\w+\s*\d+\s*\d+\:*\d*)\s(\S+)
+	([-ld])([-rwx]+)\s{2,}\d+\s(\d|\w+)\s{2,}(\(\?\)|\d+|\w+)\s{2,}(\d+)\s*(\w+\s*\d+\s*\d+\:*\d*)\s(\S+)
 
 that, applied on the sample above, will extract tokens like this:
 
+	entry 0:lrwxrwxrwx    1 0        0              19 Apr 11  2009 debian
+	entry 1:l
+	entry 2:rwxrwxrwx
+	entry 3:0
+	entry 4:0
+	entry 5:19
+	entry 6:Apr 11  2009
+	entry 7:debian
+.
 
+	entry 0:lrwxrwxrwx    1 0        0              20 Apr 11  2009 debian-cd
+	entry 1:l
+	entry 2:rwxrwxrwx
+	entry 3:0
+	entry 4:0
+	entry 5:20
+	entry 6:Apr 11  2009
+	entry 7:debian-cd
+.
+	 
+	entry 0:lrwxrwxrwx    1 0        0              20 Apr 11  2009 debian-cdimage
+	entry 1:l
+	entry 2:rwxrwxrwx
+	entry 3:0
+	entry 4:0
+	entry 5:20
+	entry 6:Apr 11  2009
+	entry 7:debian-cdimage
+.
+	 
+	entry 0:drwxr-xr-x    6 0        0            4096 Jun 08 17:09 pub
+	entry 1:d
+	entry 2:rwxr-xr-x
+	entry 3:0
+	entry 4:0
+	entry 5:4096
+	entry 6:Jun 08 17:09
+	entry 7:pub
+.
+	 
+	entry 0:-rw-r--r--    1 0        0             819 Feb 03  2009 welcome.msg
+	entry 1:-
+	entry 2:rw-r--r--
+	entry 3:0
+	entry 4:0
+	entry 5:819
+	entry 6:Feb 03  2009
+	entry 7:welcome.msg
 
 goftp will only recognize output that match this format.
 
