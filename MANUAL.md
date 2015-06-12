@@ -217,11 +217,14 @@ type WalkFunc func(path string, info os.FileMode, err error) error
 
 ---
 
+# Appendix #
+
+This section contains information about the state of the lib development and the ftp protocol.
+
 ## Notes on the different list commands for ftp ##
 
 This is a small review of how FTP listing commands actually work in practice.
 A more detailed description of the FTP protocols can be found in the following links:
-
 
 
 1. [http://cr.yp.to/ftp.html](http://cr.yp.to/ftp.html "http://cr.yp.to/ftp.html") (D. J. Bernstein's FTP Reference )
@@ -330,14 +333,30 @@ References: [http://cr.yp.to/ftp/list/eplf.html](http://cr.yp.to/ftp/list/eplf.h
 
 ### LIST ###
 
-__Only__ standard unix LS is supported in goftp 
+__Only__ standard Unix LS is supported in goftp 
 
 List is the original way to do listing on ftp.
 It's intended for human readable format.
 The output format is not standard.
-It may vary from the NLST format to something like this:
+It should be similar to something like this:
 
 	-rw-r--r--   1 aokur    (?)            17 Jan  5  2010 fcheck.js
+
+or this
+
+	-rw-r--r--   1 0        0            2407 Jun 12 04:01 dim
+	-rw-r--r--   1 0        0             522 Jun 12 05:30 enti-garr-v6.txt
+	-rw-r--r--   1 0        0        1468105470 Jun 12 04:01 ls-lR
+	-rw-r--r--   1 0        0        245428953 Jun 12 04:01 ls-lR.gz
+	-rw-r--r--   1 0        0        15775864 Jun 12 04:04 ls-lR.patch.gz
+	-rw-r--r--   1 0        0              22 Jun 12 04:04 ls-lR.times
+	lrwxrwxrwx   1 0        0              11 Nov 25  2008 mirrors -> pub/mirrors
+	drwxr-xr-x   7 0        0            4096 May 20  2013 pub
+	-rw-r--r--   1 0        0            8623 Jun 12 05:40 six2four-garr.txt
+	-rw-r--r--   1 0        0             460 Jun 12 05:35 teredo-garr.txt
+	-rw-r--r--   1 0        0              12 May 19 11:38 timezone
+	-rw-r--r--   1 0        0              61 Jun 12 05:00 v4v6
+	-rw-r--r--   1 0        0             166 Jul 24  2008 welcome.msg
 
 The LIST format varies widely from server to server. The most common format is /bin/ls format, which is difficult to parse with even moderate reliability. This poses a serious problem for clients that need more information than names.
 
@@ -355,21 +374,14 @@ A standard response in /bin/ls format will line contains
 
 So a regular expression for parsing this format could be:
 
-	([pbcdlfmpSs-])
-    (((r|-)(w|-)([xsStTL-]))((r|-)(w|-)([xsStTL-]))((r|-)(w|-)([xsStTL-])))\+?\s+
-    (?:(\d+)\s+)?
-    (\S+)\s+
-    (?:(\S+(?:\s\S+)*)\s+)?
-    (?:\d+,\s+)?
-    (\d+)\s+
-    ((?:\d+[-/]\d+[-/]\d+)|(?:\S+\s+\S+))\s+
-    (\d+(?::\d+)?)\s+
-    (\S*)(\s*.*)
+	\s*([-ld])([-rwx]+)\s{2,}\d+\s(\d|\w+)\s{2,}(\(\?\)|\d+)\s{2,}(\d+)\s*(\w+\s*\d+\s*\d+\:*\d*)\s(\S+)
+
+that, applied on the sample above, will extract tokens like this:
+
+
 
 goftp will only recognize output that match this format.
-The expression in taken from the ASF's commons Java FTP LIST parser library.
 
-(Once at [http://svn.apache.org/repos/asf/commons/proper/net/trunk/src/java/org/apache/commons/net/ftp/](http://svn.apache.org/repos/asf/commons/proper/net/trunk/src/java/org/apache/commons/net/ftp/) but link appears to be dead)
 
 References: [http://cr.yp.to/ftp/list/binls.html](http://cr.yp.to/ftp/list/binls.html)
 

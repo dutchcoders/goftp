@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"regexp"
 	"strings"
 )
 
@@ -32,52 +33,53 @@ func (ftp *FTP) getServerFeatures() (features uint32) {
 }
 
 // list the path (or current directory) and parse it. Return an array with the files and one with the directories
-func (ftp *FTP) GetFilesList(path string) (files []string, directories []string, err error) {
+func (ftp *FTP) GetFilesList(path string) (files []string, directories []string, links []string, err error) {
 	if ftp.supportedfeatures == 0 {
 		ftp.supportedfeatures = ftp.getServerFeatures()
+	}
+	if len(path) < 2 {
+		path = "./"
 	}
 	if ftp.supportedfeatures&MLSD > 0 {
 		fmt.Println("Using MLSD")
 		code, response := ftp.RawPassiveCmd("MLSD " + path)
 		if code < 0 || code > 299 {
-			return nil, nil, errors.New("MLSD did not work")
+			return nil, nil, nil, errors.New("MLSD did not work")
 		}
 		return ftp.parseMLSD(response, path)
 	} else if ftp.supportedfeatures&EPLF > 0 {
 		fmt.Println("Using EPLF")
 		code, response := ftp.RawPassiveCmd("EPLF " + path)
 		if code < 0 || code > 299 {
-			return nil, nil, errors.New("EPLF did not work")
+			return nil, nil, nil, errors.New("EPLF did not work")
 		}
 		return ftp.parseEPLF(response, path)
 	} else if ftp.supportedfeatures&NLST > 0 {
 		fmt.Println("Using NLST")
 		code, response := ftp.RawPassiveCmd("NLST " + path)
 		if code < 0 || code > 299 {
-			return nil, nil, errors.New("NLST did not work")
+			return nil, nil, nil, errors.New("NLST did not work")
 		}
 		return ftp.parseNLST(response, path)
 	} else {
 		fmt.Println("Using LIST")
 		code, response := ftp.RawPassiveCmd("LIST " + path)
+		fmt.Println(response)
 		if code < 0 || code > 299 {
-			return nil, nil, errors.New("LIST did not work")
+			return nil, nil, nil, errors.New("LIST did not work")
 		}
 		return ftp.parseUnixLIST(response, path)
 	}
 }
 
-func (ftp *FTP) parseMLSD(data []string, basePath string) (files []string, directories []string, err error) {
-	var i:=0
+func (ftp *FTP) parseMLSD(data []string, basePath string) (files []string, directories []string, links []string, err error) {
 	for _, line := range data {
 		_, t, subpath := parseLine_MLST(line)
 
 		switch t {
 		case "dir":
 			if subpath == "." {
-				i++
 			} else if subpath == ".." {
-				i++
 			} else {
 				directories = append(directories, basePath+subpath+"/")
 			}
@@ -85,44 +87,47 @@ func (ftp *FTP) parseMLSD(data []string, basePath string) (files []string, direc
 			files = append(files, basePath+subpath)
 		}
 	}
-	if i=0 { // no "." and no ".." ? This should not happen
-		errors.New("The path seems not valid")
-	}
-	return files, directories, err
+	return files, directories, links, err
 }
 
 //
 
-func (ftp *FTP) parseEPLF(data []string, basePath string) (files []string, directories []string, err error) {
+func (ftp *FTP) parseEPLF(data []string, basePath string) (files []string, directories []string, links []string, err error) {
 	fmt.Errorf("Not implemented!\n")
-	return nil, nil, errors.New("Not implemented!")
+	return nil, nil, nil, errors.New("Not implemented!")
 }
 
-func (ftp *FTP) parseNLST(data []string, basePath string) (files []string, directories []string, err error) {
+func (ftp *FTP) parseNLST(data []string, basePath string) (files []string, directories []string, links []string, err error) {
 	fmt.Errorf("Not implemented!\n")
-	return nil, nil, errors.New("Not implemented!")
+	return nil, nil, nil, errors.New("Not implemented!")
 }
 
-func (ftp *FTP) parseUnixLIST(data []string, basePath string) (files []string, directories []string, err error) {
-	/*Stolen straight from the ASF's commons Java FTP LIST parser library.
-	  http://svn.apache.org/repos/asf/commons/proper/net/trunk/src/java/org/apache/commons/net/ftp/
+func (ftp *FTP) parseUnixLIST(data []string, basePath string) (files []string, directories []string, links []string, err error) {
+	var pattern = regexp.MustCompile(`([-ld])([-rwx]+)\s{2,}\d+\s(\d|\w+)\s{2,}(\(\?\)|\d+|\w+)\s{2,}(\d+)\s*(\w+\s*\d+\s*\d+\:*\d*)\s(\S+)`)
+	for _, line := range data {
+		fmt.Printf("looking at: %s \n", line)
+		match := pattern.FindStringSubmatch(line)
+		for i, val := range match {
+			fmt.Printf("entry %d:%s\n", i, val)
+		}
+		if len(match) > 6 {
+			if match[1] == "-" { // a file
+				files = append(files, basePath+match[7])
+			} else if match[1] == "d" { // a directory
+				directories = append(directories, basePath+match[7]+"/")
+			} else if match[1] == "l" { // a link
+				token := strings.Trim(strings.Split(line, "->")[1], " ")
+				links = append(links, token)
+			}
+		}
 
+	}
 
-	  REGEXP = %r{
-	    ([pbcdlfmpSs-])
-	    (((r|-)(w|-)([xsStTL-]))((r|-)(w|-)([xsStTL-]))((r|-)(w|-)([xsStTL-])))\+?\s+
-	    (?:(\d+)\s+)?
-	    (\S+)\s+
-	    (?:(\S+(?:\s\S+)*)\s+)?
-	    (?:\d+,\s+)?
-	    (\d+)\s+
-	    ((?:\d+[-/]\d+[-/]\d+)|(?:\S+\s+\S+))\s+
-	    (\d+(?::\d+)?)\s+
-	    (\S*)(\s*.*)
-	  }x
-	*/
-
-	return nil, nil, errors.New("Not implemented!")
+	if len(files)+len(directories)+len(links) > 0 {
+		return files, directories, links, nil
+	} else {
+		return nil, nil, nil, errors.New("Not implemented!")
+	}
 }
 
 //

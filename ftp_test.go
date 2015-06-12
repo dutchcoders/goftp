@@ -140,7 +140,7 @@ func TestActiveCommand(t *testing.T) {
 func TestGetFilesListOnGoodServer(t *testing.T) {
 	var err error
 	var connection *FTP
-	host := goodServer
+	host := uglyServer
 
 	if connection, err = Connect(host); err != nil {
 		t.Error("Can't connect ->" + err.Error())
@@ -148,7 +148,7 @@ func TestGetFilesListOnGoodServer(t *testing.T) {
 	if err = connection.Login("anonymous", "anonymous"); err != nil {
 		t.Error("Can't login ->" + err.Error())
 	}
-	files, dirs, err := connection.GetFilesList("./pub/0/")
+	files, dirs, links, err := connection.GetFilesList("")
 
 	if err != nil {
 		t.Error("Can't parse file list ->" + err.Error())
@@ -157,6 +157,8 @@ func TestGetFilesListOnGoodServer(t *testing.T) {
 	fmt.Println(files)
 	fmt.Println("---")
 	fmt.Println(dirs)
+	fmt.Println("---")
+	fmt.Println(links)
 
 	connection.Close()
 }
