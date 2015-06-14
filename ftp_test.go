@@ -64,7 +64,7 @@ func standard(host string) (msg string) {
 func walk(host string) (msg string) {
 	var err error
 	var connection *FTP
-	deep := 5
+	deep := 3
 
 	if connection, err = Connect(host); err != nil {
 		return "Can't connect ->" + err.Error()

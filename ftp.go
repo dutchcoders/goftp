@@ -44,8 +44,9 @@ func (ftp *FTP) Close() {
 type WalkFunc func(path string, info os.FileMode, err error) error
 type RetrFunc func(r io.Reader) error
 
-// walks recursively through path and call walkfunc for each file
-// the optional parameter deepLimit controls the max level of recursion
+// walks recursively through path and call walkfunc for each file.
+// links are ignored.
+// the optional parameter deepLimit controls the max level of recursion.
 func (ftp *FTP) Walk(path string, walkFn WalkFunc, deepLimit ...int) (err error) {
 	fmt.Printf("Walking: '%s'\n", path)
 	deep := -1
@@ -105,7 +106,7 @@ func (ftp *FTP) Noop() (err error) {
 	return
 }
 
-// Open an active connection, send a raw command, retrieve the response, close the connection, return the response
+// Open a passive connection with pasv, send a raw command, retrieve the response, close the connection, return the response
 func (ftp *FTP) RawPassiveCmd(command string) (code int, response []string) {
 	var port int
 	var pconn net.Conn
@@ -288,7 +289,7 @@ func (ftp *FTP) AuthTLS(config tls.Config) error {
 }
 
 // read all the buffered bytes and return
-func (ftp *FTP) ReadAndDiscard() (int, error) {
+func (ftp *FTP) readAndDiscard() (int, error) {
 	var i int
 	var err error
 	buffer_size := ftp.reader.Buffered()
@@ -344,8 +345,7 @@ func (ftp *FTP) receive() (string, error) {
 			}
 		}
 	}
-	ftp.ReadAndDiscard()
-	//fmt.Println(line)
+	ftp.readAndDiscard()
 	return line, err
 }
 

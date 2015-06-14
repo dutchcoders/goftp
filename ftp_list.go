@@ -9,6 +9,7 @@ import (
 	"strings"
 )
 
+// use FEAT to retrieve server features.
 func (ftp *FTP) getServerFeatures() (features uint32) {
 	features = 0
 	code, str := ftp.RawCmd("FEAT")
@@ -20,19 +21,21 @@ func (ftp *FTP) getServerFeatures() (features uint32) {
 	lines := strings.Split(str, "\n")
 
 	for _, f := range lines {
+		// Only MLSD/MLST is supported
 		if (features&MLSD == 0) && strings.Contains(f, "MLST") { // not a bug.
 			features = features | MLSD
-		} else if (features&NLST == 0) && strings.Contains(f, "NLST") {
-			features = features | NLST
-		} else if (features&EPLF == 0) && strings.Contains(f, "EPLF") {
-			features = features | EPLF
+			/*} else if (features&NLST == 0) && strings.Contains(f, "NLST") {
+				features = features | NLST
+			} else if (features&EPLF == 0) && strings.Contains(f, "EPLF") {
+				features = features | EPLF*/
 		}
 	}
 
 	return features
 }
 
-// list the path (or current directory) and parse it. Return an array with the files and one with the directories
+// list the path (or current directory) and parse it.
+// Return an array with the files, one with the directories and one with the links
 func (ftp *FTP) GetFilesList(path string) (files []string, directories []string, links []string, err error) {
 	if ftp.supportedfeatures == 0 {
 		ftp.supportedfeatures = ftp.getServerFeatures()
@@ -41,28 +44,28 @@ func (ftp *FTP) GetFilesList(path string) (files []string, directories []string,
 		path = "./"
 	}
 	if ftp.supportedfeatures&MLSD > 0 {
-		fmt.Println("Using MLSD")
+		//fmt.Println("Using MLSD")
 		code, response := ftp.RawPassiveCmd("MLSD " + path)
 		if code < 0 || code > 299 {
 			return nil, nil, nil, errors.New("MLSD did not work")
 		}
 		return ftp.parseMLSD(response, path)
 	} else if ftp.supportedfeatures&EPLF > 0 {
-		fmt.Println("Using EPLF")
+		//fmt.Println("Using EPLF")
 		code, response := ftp.RawPassiveCmd("EPLF " + path)
 		if code < 0 || code > 299 {
 			return nil, nil, nil, errors.New("EPLF did not work")
 		}
 		return ftp.parseEPLF(response, path)
 	} else if ftp.supportedfeatures&NLST > 0 {
-		fmt.Println("Using NLST")
+		//fmt.Println("Using NLST")
 		code, response := ftp.RawPassiveCmd("NLST " + path)
 		if code < 0 || code > 299 {
 			return nil, nil, nil, errors.New("NLST did not work")
 		}
 		return ftp.parseNLST(response, path)
 	} else {
-		fmt.Println("Using LIST")
+		//fmt.Println("Using LIST")
 		code, response := ftp.RawPassiveCmd("LIST " + path)
 		//fmt.Println(response)
 		if code < 0 || code > 299 {
@@ -72,6 +75,8 @@ func (ftp *FTP) GetFilesList(path string) (files []string, directories []string,
 	}
 }
 
+// Parse the response of a MLSD
+// Return an array with the files, one with the directories and one with the links
 func (ftp *FTP) parseMLSD(data []string, basePath string) (files []string, directories []string, links []string, err error) {
 	for _, line := range data {
 		_, t, subpath := parseLine_MLST(line)
@@ -85,23 +90,52 @@ func (ftp *FTP) parseMLSD(data []string, basePath string) (files []string, direc
 			}
 		case "file":
 			files = append(files, basePath+subpath)
+		case "OS.unix=symlink":
+			links = append(links, basePath+subpath)
 		}
+
 	}
 	return files, directories, links, err
 }
 
-//
+// Parse a single MLST line
+func parseLine_MLST(line string) (perm string, t string, filename string) {
+	for _, v := range strings.Split(line, ";") {
+		v2 := strings.Split(v, "=")
 
+		switch v2[0] {
+		case "perm":
+			perm = v2[1]
+		case "type":
+			t = v2[1]
+			if t == "OS.unix" {
+				t = t + "=" + v2[2]
+				//fmt.Println("Found a link -> " + t)
+			}
+		default:
+			filename = v[1 : len(v)-2]
+		}
+	}
+
+	return
+}
+
+// Parse the response of a EPLF
+// Return an array with the files, one with the directories and one with the links
 func (ftp *FTP) parseEPLF(data []string, basePath string) (files []string, directories []string, links []string, err error) {
 	fmt.Errorf("Not implemented!\n")
 	return nil, nil, nil, errors.New("Not implemented!")
 }
 
+// Parse the response of a NLST
+// Return an array with the files, one with the directories and one with the links
 func (ftp *FTP) parseNLST(data []string, basePath string) (files []string, directories []string, links []string, err error) {
 	fmt.Errorf("Not implemented!\n")
 	return nil, nil, nil, errors.New("Not implemented!")
 }
 
+// Parse the response of a LIST
+// Return an array with the files, one with the directories and one with the links
 func (ftp *FTP) parseUnixLIST(data []string, basePath string) (files []string, directories []string, links []string, err error) {
 	var pattern = regexp.MustCompile(`([-ld])([-rwx]+)\s{2,}\d+\s(\d|\w+)\s{2,}(\(\?\)|\d+|\w+)\s{2,}(\d+)\s*(\w+\s*\d+\s*\d+\:*\d*)\s(\S+)`)
 	for _, line := range data {
@@ -119,7 +153,6 @@ func (ftp *FTP) parseUnixLIST(data []string, basePath string) (files []string, d
 				links = append(links, token)
 			}
 		}
-
 	}
 
 	if len(files)+len(directories)+len(links) > 0 {
@@ -129,7 +162,7 @@ func (ftp *FTP) parseUnixLIST(data []string, basePath string) (files []string, d
 	}
 }
 
-//
+// extract single lines from a buffered reader
 func (ftp *FTP) splitLines(reader *bufio.Reader) (files []string, err error) {
 	var line string
 	for {
@@ -144,21 +177,4 @@ func (ftp *FTP) splitLines(reader *bufio.Reader) (files []string, err error) {
 		files = append(files, string(line))
 	}
 	return files, nil
-}
-
-func parseLine_MLST(line string) (perm string, t string, filename string) {
-	for _, v := range strings.Split(line, ";") {
-		v2 := strings.Split(v, "=")
-
-		switch v2[0] {
-		case "perm":
-			perm = v2[1]
-		case "type":
-			t = v2[1]
-		default:
-			filename = v[1 : len(v)-2]
-		}
-	}
-
-	return
 }
