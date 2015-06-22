@@ -46,13 +46,21 @@ func (ftp *FTP) GetFilesList(path string) (files []string, directories []string,
 	if ftp.supportedfeatures&MLSD > 0 {
 		//fmt.Println("Using MLSD")
 		code, response := ftp.RawPassiveCmd("MLSD " + path)
+
+		if code == 550 {
+			return nil, nil, nil, errors.New("550 Requested action not taken. File unavailable.")
+		}
 		if code < 0 || code > 299 {
-			return nil, nil, nil, errors.New("MLSD did not work")
+			return nil, nil, nil, errors.New(fmt.Sprint("MLSD did not work ", code))
 		}
 		return ftp.parseMLSD(response, path)
 	} else if ftp.supportedfeatures&EPLF > 0 {
 		//fmt.Println("Using EPLF")
 		code, response := ftp.RawPassiveCmd("EPLF " + path)
+
+		if code == 550 {
+			return nil, nil, nil, errors.New("550 Requested action not taken. File unavailable.")
+		}
 		if code < 0 || code > 299 {
 			return nil, nil, nil, errors.New("EPLF did not work")
 		}
@@ -60,6 +68,10 @@ func (ftp *FTP) GetFilesList(path string) (files []string, directories []string,
 	} else if ftp.supportedfeatures&NLST > 0 {
 		//fmt.Println("Using NLST")
 		code, response := ftp.RawPassiveCmd("NLST " + path)
+
+		if code == 550 {
+			return nil, nil, nil, errors.New("550 Requested action not taken. File unavailable.")
+		}
 		if code < 0 || code > 299 {
 			return nil, nil, nil, errors.New("NLST did not work")
 		}
@@ -68,6 +80,9 @@ func (ftp *FTP) GetFilesList(path string) (files []string, directories []string,
 		//fmt.Println("Using LIST")
 		code, response := ftp.RawPassiveCmd("LIST " + path)
 		//fmt.Println(response)
+		if code == 550 {
+			return nil, nil, nil, errors.New("550 Requested action not taken. File unavailable.")
+		}
 		if code < 0 || code > 299 {
 			return nil, nil, nil, errors.New("LIST did not work")
 		}

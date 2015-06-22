@@ -276,6 +276,7 @@ The order of fields is not fixed, but it's very easy to parse each line to a dic
 
 This format is **NOT yet** supported in goftp
 
+Returns a list of filenames in the given directory (defaulting to the current directory), with no other information. 
 The difference between LIST and NLST is that NLST returns a compressed form of the directory, showing only the name of each file, while LIST returns the entire directory.
 
 The NLST format consists of a sequence of abbreviated pathnames. Each pathname is terminated by \015\012, without regard to the current binary flag. If an abbreviated pathname starts with a slash, it represents the pathname obtained by replacing each \000 by \012. If an abbreviated pathname does not start with a slash, it represents the pathname obtained by concatenating
@@ -284,7 +285,11 @@ The NLST format consists of a sequence of abbreviated pathnames. Each pathname i
 1.     a slash, if the pathname of the directory does not end with a slash; and
 1.     the abbreviated pathname, with each \000 replaced by \012. 
 
-For example, if a directory /pub produces foo\015\012bar\015\012 under NLST, it refers to the pathnames /pub/foo and /pub/bar. 
+For example, if a directory /pub produces 
+
+	foo\015\012bar\015\012 
+
+under NLST, it refers to the pathnames /pub/foo and /pub/bar. 
 
 ### EPLF ###
 

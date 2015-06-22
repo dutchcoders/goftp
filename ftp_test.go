@@ -3,6 +3,8 @@ package goftp
 import "testing"
 import "os"
 
+//import "strings"
+
 import "fmt"
 
 var goodServer string
@@ -64,7 +66,7 @@ func standard(host string) (msg string) {
 func walk(host string) (msg string) {
 	var err error
 	var connection *FTP
-	deep := 3
+	deep := 5
 
 	if connection, err = Connect(host); err != nil {
 		return "Can't connect ->" + err.Error()
@@ -79,6 +81,7 @@ func walk(host string) (msg string) {
 		return nil
 
 	}, deep)
+	//if err != nil && !strings.HasPrefix(err.Error(), "550") {
 	if err != nil {
 		return "Can't walk ->" + err.Error()
 	}
