@@ -65,6 +65,7 @@ func (ftp *FTP) Walk(path string, walkFn WalkFunc, deepLimit ...int) (err error)
 
 	if err != nil {
 		log.Println("1" + err.Error())
+		log.Println("1-->" + path)
 		return
 	}
 
@@ -72,6 +73,7 @@ func (ftp *FTP) Walk(path string, walkFn WalkFunc, deepLimit ...int) (err error)
 		err = walkFn(subpath, os.FileMode(0), nil)
 		if err != nil {
 			log.Println("2" + err.Error())
+			log.Println("2-->" + subpath)
 			return
 		}
 	}
@@ -83,6 +85,7 @@ func (ftp *FTP) Walk(path string, walkFn WalkFunc, deepLimit ...int) (err error)
 		}
 		if err != nil {
 			log.Println("3" + err.Error())
+			log.Println("3-->" + subpath)
 			return
 		}
 	}
