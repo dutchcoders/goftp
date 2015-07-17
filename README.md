@@ -12,80 +12,81 @@ Golang FTP library with Walk support.
 		package main
 
 		import (
-				"github.com/dutchcoders/goftp"
-				"crypto/tls"
-				"crypto/sha256"
-				"fmt"
-				"os"
-				"io"
+			"github.com/dutchcoders/goftp"
+			"crypto/tls"
+			"crypto/sha256"
+			"fmt"
+			"os"
+			"io"
 		)
 		
 		func main() {
-				var err error
-				var ftp *goftp.FTP
+			var err error
+			var ftp *goftp.FTP
 		
-				// For debug messages: goftp.ConnectDbg("ftp.server.com:21")
-				if ftp, err = goftp.Connect("ftp.server.com:21"); err != nil {
-						panic(err)
-				}
+			// For debug messages: goftp.ConnectDbg("ftp.server.com:21")
+			if ftp, err = goftp.Connect("ftp.server.com:21"); err != nil {
+				panic(err)
+			}
 		
-				defer ftp.Close()
+			defer ftp.Close()
 		
-				config := tls.Config{
-								InsecureSkipVerify: true,
-								ClientAuth:         tls.RequestClientCert,
-				}
+			config := tls.Config{
+				InsecureSkipVerify: true,
+				ClientAuth:         tls.RequestClientCert,
+			}
 		
-				if err = ftp.AuthTLS(config); err != nil {
-								panic(err)
-				}
+			if err = ftp.AuthTLS(config); err != nil {
+				panic(err)
+			}
 		
-				if err = ftp.Login("username", "password"); err != nil {
-						panic(err)
-				}
+			if err = ftp.Login("username", "password"); err != nil {
+				panic(err)
+			}
 		
-				if err = ftp.Cwd("/"); err != nil {
-						panic(err)
-				}
+			if err = ftp.Cwd("/"); err != nil {
+				panic(err)
+			}
 		
-				var curpath string
-				if curpath, err = ftp.Pwd(); err != nil {
-						panic(err)
-				}
+			var curpath string
+			if curpath, err = ftp.Pwd(); err != nil {
+				panic(err)
+			}
 		
-				fmt.Printf("Current path: %s", curpath)
+			fmt.Printf("Current path: %s", curpath)
 		
-				var files []string
-				if files, err = ftp.List(""); err != nil {
-						panic(err)
-				}
+			var files []string
+			if files, err = ftp.List(""); err != nil {
+				panic(err)
+			}
 		
-				fmt.Println(files)
+			fmt.Println(files)
 		
-				if file, err := os.Open("/tmp/test.txt"); err!=nil {
-						panic(err)
-				}
+			file, err := os.Open("/tmp/test.txt")
+			if file; err!=nil {
+				panic(err)
+			}
 		
-				if err := ftp.Stor("/test.txt", file); err!=nil {
-						panic(err)
-				}
+			if err := ftp.Stor("/test.txt", file); err!=nil {
+				panic(err)
+			}
 		
-				err = ftp.Walk("/", func(path string, info os.FileMode, err error) error {
+			err = ftp.Walk("/", func(path string, info os.FileMode, err error) error {
 		
-						_, err = ftp.Retr(path, func(r io.Reader) error {
-								var hasher = sha256.New()
-								if _, err = io.Copy(hasher, r); err != nil {
-										return err
-								}
+				_, err = ftp.Retr(path, func(r io.Reader) error {
+					var hasher = sha256.New()
+					if _, err = io.Copy(hasher, r); err != nil {
+						return err
+					}
 		
-								hash := fmt.Sprintf("%s %x", path, sha256.Sum256(nil))
-								fmt.Println(hash)
+					hash := fmt.Sprintf("%s %x", path, sha256.Sum256(nil))
+					fmt.Println(hash)
 		
-								return err
-						})
-		
-						return nil
+					return err
 				})
+		
+				return nil
+			})
 		}
 
 ## Contributions
