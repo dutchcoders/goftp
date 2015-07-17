@@ -62,8 +62,7 @@ Golang FTP library with Walk support.
 		
 				fmt.Println(files)
 		
-				file, err := os.Open("/tmp/test.txt")
-				if file; err!=nil {
+				if file, err := os.Open("/tmp/test.txt"); err!=nil {
 						panic(err)
 				}
 		
