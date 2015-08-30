@@ -12,8 +12,13 @@ Golang FTP library with Walk support.
 		package main
 		
 		import (
-		    "github.com/dutchcoders/goftp"
+		    "crypto/sha256"
 		    "crypto/tls"
+		    "fmt"
+		    "io"
+		    "os"
+
+		    "github.com/dutchcoders/goftp"
 		)
 		
 		func main() {
@@ -28,12 +33,12 @@ Golang FTP library with Walk support.
 		    defer ftp.Close()
 		
 		    config := tls.Config{
-		            InsecureSkipVerify: true,
-		            ClientAuth:         tls.RequestClientCert,
+		        InsecureSkipVerify: true,
+		        ClientAuth:         tls.RequestClientCert,
 		    }
 		
 		    if err = ftp.AuthTLS(config); err != nil {
-		            panic(err)
+		        panic(err)
 		    }
 		
 		    if err = ftp.Login("username", "password"); err != nil {
@@ -45,7 +50,7 @@ Golang FTP library with Walk support.
 		    }
 		
 		    var curpath string
-		    if curpath, err = ftp.Pwd("/"); err != nil {
+		    if curpath, err = ftp.Pwd(); err != nil {
 		        panic(err)
 		    }
 		
@@ -58,17 +63,16 @@ Golang FTP library with Walk support.
 		
 		    fmt.Println(files)
 		
-		    if file, err := os.Open("/tmp/test.txt"); err!=nil {
+		    var file *os.File
+		    if file, err = os.Open("/tmp/test.txt"); err != nil {
 		        panic(err)
 		    }
 		
-		    if err := ftp.Stor("/test.txt", file); err!=nil {
+		    if err := ftp.Stor("/test.txt", file); err != nil {
 		        panic(err)
 		    }
 		
 		    err = ftp.Walk("/", func(path string, info os.FileMode, err error) error {
-		        w := &bytes.Buffer{}
-		
 		        _, err = ftp.Retr(path, func(r io.Reader) error {
 		            var hasher = sha256.New()
 		            if _, err = io.Copy(hasher, r); err != nil {
