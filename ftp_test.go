@@ -4,6 +4,8 @@ import "testing"
 import "os"
 import "strings"
 
+//import "strings"
+
 import "fmt"
 
 var goodServer string
@@ -80,7 +82,12 @@ func walk(host string) (msg string) {
 		return nil
 
 	}, deep)
+<<<<<<< HEAD
 	if err != nil && !strings.HasPrefix(err.Error(), "550") {
+=======
+	//if err != nil && !strings.HasPrefix(err.Error(), "550") {
+	if err != nil {
+>>>>>>> be971b7476174181421a08199c69ea90c554e36f
 		return "Can't walk ->" + err.Error()
 	}
 	connection.Close()
