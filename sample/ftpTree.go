@@ -16,13 +16,15 @@ var l rune
 var lastdeep int
 var lastDir string
 
+const server = "bo.mirror.garr.it:21"
+
 func main() {
 	t = '├'
 	b = '─'
 	l = '└'
 	lastdeep = -1
 	lastDir = ""
-	fmt.Println(walk("bo.mirror.garr.it:21"))
+	fmt.Println(walk(server))
 }
 
 func walk(host string) (msg string) {
