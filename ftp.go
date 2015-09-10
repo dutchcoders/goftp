@@ -31,11 +31,11 @@ type FTP struct {
 }
 
 const (
-	MLSD     = 1
-	NLST     = 2
-	EPLF     = 4
-	BAD      = 1 >> 32 // this server only supports LIST
-	STUBBORN = -2
+	MLSD = 1
+	NLST = 2
+	EPLF = 4
+	BAD  = 1 >> 32 // this server only supports LIST
+//	STUBBORN = -2
 )
 
 func (ftp *FTP) Close() {
@@ -44,6 +44,78 @@ func (ftp *FTP) Close() {
 
 type WalkFunc func(path string, info os.FileMode, err error) error
 type RetrFunc func(r io.Reader) error
+type ErrorHandlerFunc func(pwd string, errorCode int, errorStr string, shouldBeSkippable bool) (skippable bool, err error)
+
+// walks recursively through path and call walkfunc for each file.
+// - links are ignored.
+// - the optional parameter deepLimit controls the max level of recursion.
+// - recursion stops only if errHandler returns false ( or if it's not defined )
+// - Directories are traversed in pre-order
+func (ftp *FTP) WalkCustom(path string, walkFn WalkFunc, errHandler ErrorHandlerFunc, deepLimit ...int) (err error) {
+	deep := -1
+	if len(deepLimit) > 0 {
+		deep = deepLimit[0]
+	}
+
+	if ftp.debug {
+		log.Printf("Walking: '%s'\n", path)
+		if len(deepLimit) > 0 {
+			log.Printf("Deep limit is: '%d'\n", deepLimit[0])
+		}
+
+	}
+
+	files, dirs, _, err := ftp.GetFilesList(path)
+
+	if err != nil {
+		if ftp.debug {
+			log.Println("1 " + err.Error())
+			log.Println("1--> " + path)
+		}
+		return
+	}
+
+	for _, subpath := range files {
+		err = walkFn(subpath, os.FileMode(0), nil)
+		if err != nil {
+			if ftp.debug {
+				log.Println("2 " + err.Error())
+				log.Println("2--> " + subpath)
+			}
+			if errHandler == nil {
+				return
+			}
+			code, _ := strconv.Atoi(err.Error()[:3])
+			flag, e := errHandler(subpath, code, err.Error(), code == 540)
+			if !flag || e != nil {
+				return
+			}
+		}
+	}
+	for _, subpath := range dirs {
+		if deep > 0 {
+			err = ftp.WalkCustom(subpath, walkFn, errHandler, deep-1)
+		} else if deep < 0 {
+			err = ftp.WalkCustom(subpath, walkFn, errHandler)
+		} else if deep == 0 {
+			log.Println("Deep limit reached")
+		}
+		if err != nil {
+			log.Println("3 " + err.Error())
+			log.Println("3--> " + subpath)
+			if errHandler == nil {
+				return
+			}
+			code, _ := strconv.Atoi(err.Error()[:3])
+			flag, e := errHandler(subpath, code, err.Error(), code == 550)
+			if !flag || e != nil {
+				return
+			}
+		}
+	}
+
+	return
+}
 
 // walks recursively through path and call walkfunc for each file.
 // - links are ignored.
@@ -53,44 +125,9 @@ type RetrFunc func(r io.Reader) error
 func (ftp *FTP) Walk(path string, walkFn WalkFunc, deepLimit ...int) (err error) {
 	deep := -1
 	if len(deepLimit) > 0 {
-		//log.Printf("Deep limit is: '%d'\n", deepLimit[0])
 		deep = deepLimit[0]
 	}
-
-	if ftp.debug {
-		log.Printf("Walking: '%s'\n", path)
-	}
-
-	files, dirs, _, err := ftp.GetFilesList(path)
-
-	if err != nil {
-		log.Println("1" + err.Error())
-		log.Println("1-->" + path)
-		return
-	}
-
-	for _, subpath := range files {
-		err = walkFn(subpath, os.FileMode(0), nil)
-		if err != nil {
-			log.Println("2" + err.Error())
-			log.Println("2-->" + subpath)
-			return
-		}
-	}
-	for _, subpath := range dirs {
-		if deep > 0 {
-			err = ftp.Walk(subpath, walkFn, deep-1)
-		} else if deep < 0 {
-			err = ftp.Walk(subpath, walkFn)
-		}
-		if err != nil {
-			log.Println("3" + err.Error())
-			log.Println("3-->" + subpath)
-			return
-		}
-	}
-
-	return
+	return ftp.WalkCustom(path, walkFn, nil, deep)
 }
 
 // send quit to the server and close the connection
@@ -562,7 +599,7 @@ func ConnectDbg(addr string) (*FTP, error) {
 
 	var line string
 
-	object := &FTP{conn: conn, addr: addr, reader: reader, writer: writer, debug: false, supportedfeatures: 0}
+	object := &FTP{conn: conn, addr: addr, reader: reader, writer: writer, debug: true, supportedfeatures: 0}
 	line, _ = object.receive()
 
 	log.Print(line)

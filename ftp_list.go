@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log"
 	"regexp"
 	"strings"
 )
@@ -13,7 +14,6 @@ import (
 func (ftp *FTP) getServerFeatures() (features uint32) {
 	features = 0
 	code, str := ftp.RawCmd("FEAT")
-	//fmt.Println(str)
 	if code < 0 || code > 299 {
 		return BAD
 	}
@@ -22,8 +22,11 @@ func (ftp *FTP) getServerFeatures() (features uint32) {
 
 	for _, f := range lines {
 		// Only MLSD/MLST is supported
-		if (features&MLSD == 0) && strings.Contains(f, "MLST") { // not a bug.
+		if (features&MLSD == 0) && strings.Contains(f, "MLST") { // not a bug, see command reference.
 			features = features | MLSD
+
+			// Check of NLST and EPLF are disabled since not yet supported
+
 			/*} else if (features&NLST == 0) && strings.Contains(f, "NLST") {
 				features = features | NLST
 			} else if (features&EPLF == 0) && strings.Contains(f, "EPLF") {
@@ -51,7 +54,7 @@ func (ftp *FTP) GetFilesList(path string) (files []string, directories []string,
 			return nil, nil, nil, errors.New("550 Requested action not taken. File unavailable.")
 		}
 		if code < 0 || code > 299 {
-			return nil, nil, nil, errors.New(fmt.Sprint("MLSD did not work ", code))
+			return nil, nil, nil, errors.New(fmt.Sprint("%v MLSD did not work ", code))
 		}
 		return ftp.parseMLSD(response, path)
 	} else if ftp.supportedfeatures&EPLF > 0 {
@@ -62,7 +65,7 @@ func (ftp *FTP) GetFilesList(path string) (files []string, directories []string,
 			return nil, nil, nil, errors.New("550 Requested action not taken. File unavailable.")
 		}
 		if code < 0 || code > 299 {
-			return nil, nil, nil, errors.New("EPLF did not work")
+			return nil, nil, nil, errors.New(fmt.Sprint("%v EPLF did not work ", code))
 		}
 		return ftp.parseEPLF(response, path)
 	} else if ftp.supportedfeatures&NLST > 0 {
@@ -73,7 +76,7 @@ func (ftp *FTP) GetFilesList(path string) (files []string, directories []string,
 			return nil, nil, nil, errors.New("550 Requested action not taken. File unavailable.")
 		}
 		if code < 0 || code > 299 {
-			return nil, nil, nil, errors.New("NLST did not work")
+			return nil, nil, nil, errors.New(fmt.Sprint("%v NLST did not work ", code))
 		}
 		return ftp.parseNLST(response, path)
 	} else {
@@ -138,15 +141,15 @@ func parseLine_MLST(line string) (perm string, t string, filename string) {
 // Parse the response of a EPLF
 // Return an array with the files, one with the directories and one with the links
 func (ftp *FTP) parseEPLF(data []string, basePath string) (files []string, directories []string, links []string, err error) {
-	fmt.Errorf("Not implemented!\n")
-	return nil, nil, nil, errors.New("Not implemented!")
+	fmt.Errorf("Not implemented! (EPLF)\n")
+	return nil, nil, nil, errors.New("Not implemented! (EPLF)")
 }
 
 // Parse the response of a NLST
 // Return an array with the files, one with the directories and one with the links
 func (ftp *FTP) parseNLST(data []string, basePath string) (files []string, directories []string, links []string, err error) {
-	fmt.Errorf("Not implemented!\n")
-	return nil, nil, nil, errors.New("Not implemented!")
+	fmt.Errorf("Not implemented! (NLST)\n")
+	return nil, nil, nil, errors.New("Not implemented! (NLST)")
 }
 
 // Parse the response of a LIST
@@ -170,10 +173,16 @@ func (ftp *FTP) parseUnixLIST(data []string, basePath string) (files []string, d
 		}
 	}
 
-	if len(files)+len(directories)+len(links) > 0 {
+	sum := len(files) + len(directories) + len(links)
+	if sum > 0 {
 		return files, directories, links, nil
+	} else if sum == 0 { //empty folder
+		if ftp.debug {
+			log.Printf("Empty folder")
+		}
+		return nil, nil, nil, nil
 	} else {
-		return nil, nil, nil, errors.New("Not implemented!")
+		return nil, nil, nil, errors.New("Not implemented (Uncommon Unix LIST)!")
 	}
 }
 

@@ -1,7 +1,15 @@
 // ftpTree
+
+/*
+This sample shows a complete application of goftp.
+It walks trough an ftp server and print the folder structure like
+tree command of unix ( and msdos )
+*/
+
 package main
 
 import (
+	"bufio"
 	"fmt"
 	"os"
 	"strings"
@@ -16,14 +24,25 @@ var l rune
 var lastdeep int
 var lastDir string
 
-const server = "bo.mirror.garr.it:21"
+//const defaultServer = "bo.mirror.garr.it:21"
 
 func main() {
 	t = '├'
 	b = '─'
 	l = '└'
 	lastdeep = -1
-	lastDir = ""
+	var server string
+
+	if len(os.Args) < 2 {
+		reader := bufio.NewReader(os.Stdin)
+		fmt.Println("Insert a valid ftp url, like an.ftp.server:21")
+		server, _ = reader.ReadString('\n')
+		server = strings.TrimSpace(server)
+		fmt.Println("Connecting to <", server, ">")
+	} else {
+		server = os.Args[1]
+	}
+
 	fmt.Println(walk(server))
 }
 
@@ -42,7 +61,7 @@ func walk(host string) (msg string) {
 
 	fmt.Println(host)
 
-	err = connection.Walk("/", func(path string, info os.FileMode, err error) error {
+	err = connection.WalkCustom("/", func(path string, info os.FileMode, err error) error {
 
 		I := strings.Count(path, "/") - 1
 		lindex := strings.LastIndex(path, "/")
@@ -62,14 +81,26 @@ func walk(host string) (msg string) {
 		fmt.Print("├───")
 		nomefile := path[1+lindex:]
 		fmt.Println(nomefile)
+		// I don't wanna flood
 		time.Sleep(200 * time.Millisecond)
 		lastdeep = I
 		lastDir = currentDir
 		return nil
 
-	}, deep)
+	},
+		func(pwd string, errorCode int, errorStr string, shouldBeSkippable bool) (skippable bool, err error) {
+			if errorCode == 550 {
+				fmt.Println("Skipping <", pwd, ">")
+				return true, nil
+			} else {
+
+				fmt.Println("Error on <", pwd, "> of type <", errorStr, ">. giving up.")
+				return false, nil
+			}
+		},
+		deep)
 	if err != nil {
-		fmt.Println("Error on")
+		fmt.Println("Error on ", err.Error())
 		return "Can't walk ->" + err.Error()
 	}
 	connection.Close()
