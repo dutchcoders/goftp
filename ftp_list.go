@@ -176,13 +176,11 @@ func (ftp *FTP) parseUnixLIST(data []string, basePath string) (files []string, d
 	sum := len(files) + len(directories) + len(links)
 	if sum > 0 {
 		return files, directories, links, nil
-	} else if sum == 0 { //empty folder
+	} else { //empty folder
 		if ftp.debug {
 			log.Printf("Empty folder")
 		}
 		return nil, nil, nil, nil
-	} else {
-		return nil, nil, nil, errors.New("Not implemented (Uncommon Unix LIST)!")
 	}
 }
 

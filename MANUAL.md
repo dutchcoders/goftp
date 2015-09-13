@@ -2,47 +2,41 @@
 
 **Table of Contents**  (*generated with [DocToc](http://doctoc.herokuapp.com/)*)
 
-- [Public functions](#)
-		- [type FTP](#)
-		- [func  Connect](#)
-		- [func  ConnectDbg](#)
-		- [func (*FTP) AuthTLS](#)
-		- [func (*FTP) Close](#)
-		- [func (*FTP) Cwd](#)
-		- [func (*FTP) Dele](#)
-		- [func (*FTP) List](#)
-		- [func (*FTP) Login](#)
-		- [func (*FTP) Mkd](#)
-		- [func (*FTP) Noop](#)
-		- [func (*FTP) Pasv](#)
-		- [func (*FTP) Pwd](#)
-		- [func (*FTP) Quit](#)
-		- [func (*FTP) RawCmd](#)
-		- [func (*FTP) ReadAndDiscard](#)
-		- [func (*FTP) Rename](#)
-		- [func (*FTP) Retr](#)
-		- [func (*FTP) Stor](#)
-		- [func (*FTP) Type](#)
-		- [func (*FTP) Walk](#)
-		- [type RetrFunc](#)
-		- [type WalkFunc](#)
-- [Notes on the different list commands for ftp](#)
-	- [How do I know which commands the target server supports?](#)
-	- [MLSD](#)
-	- [NLST](#)
-	- [EPLF](#)
-	- [LIST](#)
+## Index
+### Public functions
+- [type FTP](#)
+- [func  Connect](#)
+- [func  ConnectDbg](#)
+- [func (*FTP) AuthTLS](#)
+- [func (*FTP) Close](#)
+- [func (*FTP) Cwd](#)
+- [func (*FTP) Dele](#)
+- [func (*FTP) List](#)
+- [func (*FTP) Login](#)
+- [func (*FTP) Mkd](#)
+- [func (*FTP) Noop](#)
+- [func (*FTP) Pasv](#)
+- [func (*FTP) Pwd](#)
+- [func (*FTP) Quit](#)
+- [func (*FTP) RawCmd](#)
+- [func (*FTP) ReadAndDiscard](#)
+- [func (*FTP) Rename](#)
+- [func (*FTP) Retr](#)
+- [func (*FTP) Stor](#)
+- [func (*FTP) Type](#)
+- [func (*FTP) Walk](#)
+- [func (*FTP) WalkCustom](#)
+- [type RetrFunc](#)
+- [type WalkFunc](#)
+### Notes on the different list commands for ftp
+- [How do I know which commands the target server supports?](#)
+- [MLSD](#)
+- [NLST](#)
+- [EPLF](#)
+- [LIST](#)
 - [Sample Code](#)
 
 ## Public functions ##
-
-#### type FTP
-
-```go
-type FTP struct {
-}
-```
-
 
 #### func  Connect
 
@@ -200,7 +194,42 @@ change transfer type
 func (ftp *FTP) Walk(path string, walkFn WalkFunc) (err error)
 ```
 
-walks recursively through path and call walkfunc for each file
+walks recursively through path and call walkfunc for each file.
+
+- links are ignored.
+- the optional parameter deepLimit controls the max level of recursion.
+- recursion stops on first error , **always**.
+- Directories are traversed in pre-order
+
+
+#### func (*FTP) WalkCustom
+
+```go
+func (ftp *FTP) WalkCustom(path string, walkFn WalkFunc, errHandler ErrorHandlerFunc, deepLimit ...int) (err error)
+```
+walks recursively through path and call walkfunc for each file.
+
+- links are ignored.
+- the optional parameter deepLimit controls the max level of recursion.
+- recursion stops only if errHandler returns false ( or if it's not defined )
+- Directories are traversed in pre-order
+
+### Types
+
+#### type FTP
+
+```go
+type FTP struct {
+}
+```
+
+
+#### type ErrorHandlerFunc
+
+```go
+type ErrorHandlerFunc func(pwd string, errorCode int, errorStr string, shouldBeSkippable bool) (skippable bool, err error)
+```
+
 
 #### type RetrFunc
 
@@ -276,20 +305,20 @@ The order of fields is not fixed, but it's very easy to parse each line to a dic
 
 This format is **NOT yet** supported in goftp
 
-Returns a list of filenames in the given directory (defaulting to the current directory), with no other information. 
+Returns a list of filenames in the given directory (defaulting to the current directory), with no other information.
 The difference between LIST and NLST is that NLST returns a compressed form of the directory, showing only the name of each file, while LIST returns the entire directory.
 
 The NLST format consists of a sequence of abbreviated pathnames. Each pathname is terminated by \015\012, without regard to the current binary flag. If an abbreviated pathname starts with a slash, it represents the pathname obtained by replacing each \000 by \012. If an abbreviated pathname does not start with a slash, it represents the pathname obtained by concatenating
 
 1.     the pathname of the directory;
 1.     a slash, if the pathname of the directory does not end with a slash; and
-1.     the abbreviated pathname, with each \000 replaced by \012. 
+1.     the abbreviated pathname, with each \000 replaced by \012.
 
-For example, if a directory /pub produces 
+For example, if a directory /pub produces
 
-	foo\015\012bar\015\012 
+	foo\015\012bar\015\012
 
-under NLST, it refers to the pathnames /pub/foo and /pub/bar. 
+under NLST, it refers to the pathnames /pub/foo and /pub/bar.
 
 ### EPLF ###
 
@@ -301,14 +330,14 @@ EPLF was designed to
 
 1.     reliably communicate the information needed by clients;
 2.     make client and server implementation as easy as possible; and
-3.     be readable to humans, when readability does not complicate implementations. 
+3.     be readable to humans, when readability does not complicate implementations.
 
 Output will be formatted like this:
 
      +i8388621.48594,m825718503,r,s280, djb.html
      +i8388621.50690,m824255907,/, 514
      +i8388621.48598,m824253270,r,s612, 514.html
- 
+
 
 An EPLF response to LIST is a series of lines, each line specifying one file. Each line contains
 
@@ -316,7 +345,7 @@ An EPLF response to LIST is a series of lines, each line specifying one file. Ea
 2.     a series of facts about the file;
 3.     a tab (\011);
 4.     an abbreviated pathname; and
-5.     \015\012. 
+5.     \015\012.
 (The terminating \015\012 does not depend on the binary flag.)
 
  Each fact is zero or more bytes of information, terminated by a comma and not containing any tabs. Facts may appear in any order. Each fact appears at most once.
@@ -328,10 +357,10 @@ Facts have the general format xy, where x is one of the following strings:
 1.     s: The size of this file is y. The server is required to provide a sequence of one or more ASCII digits in y, specifying a number. If the file is retrieved as a binary file and is not modified, it will contain exactly y bytes. This fact is optional; it should not be supplied for files that can never be retrieved, or for files whose size is constantly changing. Clients can use this fact to preallocate space.
 1.     m: This file was last modified at y. The server is required to provide a sequence of one or more ASCII digits in y, specifying a number of seconds, real time, since the UNIX epoch at the beginning of 1970 GMT. This fact is optional; it should not be supplied by servers that do not know the time in GMT, and it should not be supplied for files that have been modified more recently than one minute ago. (It also cannot be supplied for files last modified before 1970.) Mirroring clients can save time by skipping files whose modification time has not changed since the previous mirror.
 1.     i: This file has identifier y. If two files on the same FTP server (not necessarily in the same LIST response) have the same identifiers then they have the same contents: a RETR of each file will produce the same results, for example, and a CWD to each file will produce the same results in a subsequent RETR or LIST. (Under UNIX, for example, the server could use dev.ino as an identifier, where dev and ino are the device number and inode number of the file as returned by stat(). Note that lstat() is not a good idea for FTP directory listings.) Indexing clients can use this fact to avoid searching the same directory twice; mirroring clients can use this fact to avoid retrieving the same file twice. This fact is optional, but high-quality servers will always supply it at least for directories so that indexing programs can avoid CWD loops.
-1.     up: The client may use SITE CHMOD to change the UNIX permission bits of this file. The server must provide three ASCII digits in y, in octal, showing the current permission bits. 
+1.     up: The client may use SITE CHMOD to change the UNIX permission bits of this file. The server must provide three ASCII digits in y, in octal, showing the current permission bits.
 
 
-Modification times are expressed as second counters rather than calendar dates and times, for example, because second counters are much easier to generate and parse, making it more likely that browsers will display times in the viewer's time zone and native language. 
+Modification times are expressed as second counters rather than calendar dates and times, for example, because second counters are much easier to generate and parse, making it more likely that browsers will display times in the viewer's time zone and native language.
 
 
 References: [http://cr.yp.to/ftp/list/eplf.html](http://cr.yp.to/ftp/list/eplf.html)
@@ -339,7 +368,7 @@ References: [http://cr.yp.to/ftp/list/eplf.html](http://cr.yp.to/ftp/list/eplf.h
 
 ### LIST ###
 
-__Only__ standard Unix LS is supported in goftp 
+__Only__ standard Unix LS is supported in goftp
 
 List is the original way to do listing on ftp.
 It's intended for human readable format.
@@ -384,7 +413,7 @@ A standard response in /bin/ls format will line contains
 5. a day number right-justified in a 3-byte field;
 6. a space and a 2-digit hour number;
 7. a colon and a 2-digit minute number;
-8. a space and the abbreviated pathname of the file. 
+8. a space and the abbreviated pathname of the file.
 
 So a regular expression for parsing this format could be:
 
@@ -411,7 +440,7 @@ that, applied on the sample above, will extract tokens like this:
 	entry 6:Apr 11  2009
 	entry 7:debian-cd
 .
-	 
+
 	entry 0:lrwxrwxrwx    1 0        0              20 Apr 11  2009 debian-cdimage
 	entry 1:l
 	entry 2:rwxrwxrwx
@@ -421,7 +450,7 @@ that, applied on the sample above, will extract tokens like this:
 	entry 6:Apr 11  2009
 	entry 7:debian-cdimage
 .
-	 
+
 	entry 0:drwxr-xr-x    6 0        0            4096 Jun 08 17:09 pub
 	entry 1:d
 	entry 2:rwxr-xr-x
@@ -431,7 +460,7 @@ that, applied on the sample above, will extract tokens like this:
 	entry 6:Jun 08 17:09
 	entry 7:pub
 .
-	 
+
 	entry 0:-rw-r--r--    1 0        0             819 Feb 03  2009 welcome.msg
 	entry 1:-
 	entry 2:rw-r--r--
@@ -450,80 +479,189 @@ References: [http://cr.yp.to/ftp/list/binls.html](http://cr.yp.to/ftp/list/binls
 
 ## Sample Code
 
+### Basic usage
 ```go
 package main
-		
+
 		import (
 		    "github.com/dutchcoders/goftp"
 		    "crypto/tls"
 		)
-		
+
 		func main() {
 		    var err error
 		    var ftp *goftp.FTP
-		
+
 		    // For debug messages: goftp.ConnectDbg("ftp.server.com:21")
 		    if ftp, err = goftp.Connect("ftp.server.com:21"); err != nil {
 		        panic(err)
 		    }
-		
+
 		    defer ftp.Close()
-		
+
 		    config := tls.Config{
 		            InsecureSkipVerify: true,
 		            ClientAuth:         tls.RequestClientCert,
 		    }
-		
+
 		    if err = ftp.AuthTLS(config); err != nil {
 		            panic(err)
 		    }
-		
+
 		    if err = ftp.Login("username", "password"); err != nil {
 		        panic(err)
 		    }
-		
+
 		    if err = ftp.Cwd("/"); err != nil {
 		        panic(err)
 		    }
-		
+
 		    var curpath string
 		    if curpath, err = ftp.Pwd("/"); err != nil {
 		        panic(err)
 		    }
-		
+
 		    fmt.Printf("Current path: %s", curpath)
-		
+
 		    var files []string
 		    if files, err = ftp.List(""); err != nil {
 		        panic(err)
 		    }
-		
+
 		    fmt.Println(files)
-		
+
 		    if file, err := os.Open("/tmp/test.txt"); err!=nil {
 		        panic(err)
 		    }
-		
+
 		    if err := ftp.Stor("/test.txt", file); err!=nil {
 		        panic(err)
 		    }
-		
+
 		    err = ftp.Walk("/", func(path string, info os.FileMode, err error) error {
 		        w := &bytes.Buffer{}
-		
+
 		        _, err = ftp.Retr(path, func(r io.Reader) error {
 		            var hasher = sha256.New()
 		            if _, err = io.Copy(hasher, r); err != nil {
 		                return err
 		            }
-		
+
 		            hash := fmt.Sprintf("%s %x", path, sha256.Sum256(nil))
 		            fmt.Println(hash)
-		
+
 		            return err
 		        })
-		
+
 		        return nil
 		    })
 		}
+```
+
+### An example of Walk. Implementing the Tree command
+This sample shows a complete application that uses of goftp.
+It walks trough an ftp server and print the folder structure like the tree command of Unix
+
+```go
+      package main
+
+      import (
+      	"bufio"
+      	"fmt"
+      	"os"
+      	"strings"
+      	"time"
+
+      	//"github.com/VincenzoLaSpesa/goftp"
+        "github.com/dutchcoders/goftp"  
+      )
+
+      var t rune
+      var b rune
+      var l rune
+      var lastdeep int
+      var lastDir string
+
+      //const defaultServer = "bo.mirror.garr.it:21"
+
+      func main() {
+      	t = '├'
+      	b = '─'
+      	l = '└'
+      	lastdeep = -1
+      	var server string
+
+      	if len(os.Args) < 2 {
+      		reader := bufio.NewReader(os.Stdin)
+      		fmt.Println("Insert a valid ftp url, like an.ftp.server:21")
+      		server, _ = reader.ReadString('\n')
+      		server = strings.TrimSpace(server)
+      		fmt.Println("Connecting to <", server, ">")
+      	} else {
+      		server = os.Args[1]
+      	}
+
+      	fmt.Println(walk(server))
+      }
+
+      func walk(host string) (msg string) {
+
+      	var err error
+      	var connection *goftp.FTP
+      	deep := 5
+
+      	if connection, err = goftp.Connect(host); err != nil {
+      		return "Can't connect ->" + err.Error()
+      	}
+      	if err = connection.Login("anonymous", "anonymous"); err != nil {
+      		return "Can't login ->" + err.Error()
+      	}
+
+      	fmt.Println(host)
+
+      	err = connection.WalkCustom("/", func(path string, info os.FileMode, err error) error {
+
+      		I := strings.Count(path, "/") - 1
+      		lindex := strings.LastIndex(path, "/")
+      		currentDir := path[:lindex]
+
+      		if lastdeep != I || lastDir != currentDir { //change of dir
+      			for i := 1; i < I; i++ {
+      				fmt.Print("|   ")
+      			}
+      			fmt.Print("├───")
+      			fmt.Println(currentDir)
+      		}
+
+      		for i := 0; i < I; i++ {
+      			fmt.Print("|   ")
+      		}
+      		fmt.Print("├───")
+      		nomefile := path[1+lindex:]
+      		fmt.Println(nomefile)
+      		// I don't wanna flood
+      		time.Sleep(200 * time.Millisecond)
+      		lastdeep = I
+      		lastDir = currentDir
+      		return nil
+
+      	},
+      		func(pwd string, errorCode int, errorStr string, shouldBeSkippable bool) (skippable bool, err error) {
+      			if errorCode == 550 {
+      				fmt.Println("Skipping <", pwd, ">")
+      				return true, nil
+      			} else {
+
+      				fmt.Println("Error on <", pwd, "> of type <", errorStr, ">. giving up.")
+      				return false, nil
+      			}
+      		},
+      		deep)
+      	if err != nil {
+      		fmt.Println("Error on ", err.Error())
+      		return "Can't walk ->" + err.Error()
+      	}
+      	connection.Close()
+      	return ""
+      }
 ```

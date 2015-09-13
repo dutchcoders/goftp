@@ -120,7 +120,7 @@ func (ftp *FTP) WalkCustom(path string, walkFn WalkFunc, errHandler ErrorHandler
 // walks recursively through path and call walkfunc for each file.
 // - links are ignored.
 // - the optional parameter deepLimit controls the max level of recursion.
-// - recursion stops on first error anyways.
+// - recursion stops on first error , *always*.
 // - Directories are traversed in pre-order
 func (ftp *FTP) Walk(path string, walkFn WalkFunc, deepLimit ...int) (err error) {
 	deep := -1
