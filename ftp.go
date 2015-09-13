@@ -258,15 +258,12 @@ func (ftp *FTP) Type(t TypeCode) error {
 // TypeCode for the representation types
 type TypeCode string
 
+// Type codes for
 const (
-	// TypeASCII for ASCII
-	TypeASCII = "A"
-	// TypeEBCDIC for EBCDIC
+	TypeASCII  = "A"
 	TypeEBCDIC = "E"
-	// TypeImage for an Image
-	TypeImage = "I"
-	// TypeLocal for local byte size
-	TypeLocal = "L"
+	TypeImage  = "I"
+	TypeLocal  = "L"
 )
 
 func (ftp *FTP) receiveLine() (string, error) {
@@ -390,13 +387,14 @@ func (ftp *FTP) Stor(path string, r io.Reader) (err error) {
 	if pconn, err = ftp.newConnection(port); err != nil {
 		return
 	}
+	defer pconn.Close()
 
 	var line string
 	if line, err = ftp.receive(); err != nil {
 		return
 	}
 
-	if !strings.HasPrefix(line, "150") {
+	if !strings.HasPrefix(line, StatusFileOK) {
 		err = errors.New(line)
 		return
 	}
@@ -405,13 +403,11 @@ func (ftp *FTP) Stor(path string, r io.Reader) (err error) {
 		return
 	}
 
-	pconn.Close()
-
 	if line, err = ftp.receive(); err != nil {
 		return
 	}
 
-	if !strings.HasPrefix(line, "226") {
+	if !strings.HasPrefix(line, StatusClosingDataConnection) {
 		err = errors.New(line)
 		return
 	}
@@ -420,26 +416,77 @@ func (ftp *FTP) Stor(path string, r io.Reader) (err error) {
 
 }
 
-func (ftp *FTP) Sys() error {
-	if err := ftp.send("SYS"); err != nil {
-		return err
+// Syst returns the system type of the remote host
+func (ftp *FTP) Syst() (line string, err error) {
+	if err := ftp.send("SYST"); err != nil {
+		return "", err
 	}
-
-	return nil
-}
-
-func (ftp *FTP) Stat(path string) (line string, err error) {
-	if err = ftp.send("STAT %s", path); err != nil {
-		return
-	}
-
 	if line, err = ftp.receive(); err != nil {
 		return
 	}
-	// TODO(vbatts) parse this line
+	if !strings.HasPrefix(line, StatusSystemType) {
+		err = errors.New(line)
+		return
+	}
+
+	return strings.SplitN(strings.TrimSpace(line), " ", 2)[1], nil
+}
+
+// System types from Syst
+var (
+	SystemTypeUnixL8    = "UNIX Type: L8"
+	SystemTypeWindowsNT = "Windows_NT"
+)
+
+var reSystStatus = map[string]*regexp.Regexp{
+	SystemTypeUnixL8:    regexp.MustCompile(""),
+	SystemTypeWindowsNT: regexp.MustCompile(""),
+}
+
+// Stat gets the status of path from the remote host
+func (ftp *FTP) Stat(path string) ([]string, error) {
+	/*
+		syst, err := ftp.Syst()
+		if err != nil {
+			return nil, err
+		}
+			re, ok := reSystStatus[syst]
+			if !ok {
+				re = regexp.MustCompile(".*")
+			}
+	*/
+	if err := ftp.send("STAT %s", path); err != nil {
+		return nil, err
+	}
+
+	stat, err := ftp.receive()
+	if err != nil {
+		return nil, err
+	}
+	if !strings.HasPrefix(stat, StatusFileStatus) &&
+		!strings.HasPrefix(stat, StatusDirectoryStatus) &&
+		!strings.HasPrefix(stat, StatusSystemStatus) {
+		return nil, errors.New(stat)
+	}
+	if strings.HasPrefix(stat, StatusSystemStatus) {
+		return strings.Split(stat, "\n"), nil
+	}
+	lines := []string{}
+	for _, line := range strings.Split(stat, "\n") {
+		if strings.HasPrefix(line, StatusFileStatus) {
+			continue
+		}
+		//fmt.Printf("%v\n", re.FindAllStringSubmatch(line, -1))
+		lines = append(lines, strings.TrimSpace(line))
+
+	}
+	// TODO(vbatts) parse this line for SystemTypeWindowsNT
 	//"213-status of /remfdata/all.zip:\r\n    09-12-15  04:07AM             37192705 all.zip\r\n213 End of status.\r\n"
 
-	return line, nil
+	// and this for SystemTypeUnixL8
+	// "-rw-r--r--   22 4015     4015        17976 Jun 10  1994 COPYING"
+	// "drwxr-xr-x    6 4015     4015         4096 Aug 21 17:25 kernels"
+	return lines, nil
 }
 
 // Retr retrieves file from remote host at path, using retrFn to read from the remote file.
@@ -468,7 +515,7 @@ func (ftp *FTP) Retr(path string, retrFn RetrFunc) (s string, err error) {
 		return
 	}
 
-	if !strings.HasPrefix(line, "150") {
+	if !strings.HasPrefix(line, StatusFileOK) {
 		err = errors.New(line)
 		return
 	}
@@ -481,7 +528,7 @@ func (ftp *FTP) Retr(path string, retrFn RetrFunc) (s string, err error) {
 		return
 	}
 
-	if !strings.HasPrefix(line, "226") {
+	if !strings.HasPrefix(line, StatusClosingDataConnection) {
 		err = errors.New(line)
 		return
 	}
@@ -512,13 +559,14 @@ func (ftp *FTP) List(path string) (files []string, err error) {
 	if pconn, err = ftp.newConnection(port); err != nil {
 		return
 	}
+	defer pconn.Close()
 
 	var line string
 	if line, err = ftp.receive(); err != nil {
 		return
 	}
 
-	if !strings.HasPrefix(line, "150") {
+	if !strings.HasPrefix(line, StatusFileOK) {
 		// MLSD failed, lets try LIST
 		if err = ftp.send("LIST %s", path); err != nil {
 			return
@@ -528,7 +576,7 @@ func (ftp *FTP) List(path string) (files []string, err error) {
 			return
 		}
 
-		if !strings.HasPrefix(line, "150") {
+		if !strings.HasPrefix(line, StatusFileOK) {
 			// Really list is not working here
 			err = errors.New(line)
 			return
@@ -549,13 +597,11 @@ func (ftp *FTP) List(path string) (files []string, err error) {
 		files = append(files, string(line))
 	}
 
-	pconn.Close()
-
 	if line, err = ftp.receive(); err != nil {
 		return
 	}
 
-	if !strings.HasPrefix(line, "226") {
+	if !strings.HasPrefix(line, StatusClosingDataConnection) {
 		err = errors.New(line)
 		return
 	}
