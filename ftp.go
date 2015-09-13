@@ -101,7 +101,7 @@ func (ftp *FTP) Walk(path string, walkFn WalkFunc) (err error) {
 
 // Quit sends quit to the server and close the connection. No need to Close after this.
 func (ftp *FTP) Quit() (err error) {
-	if _, err := ftp.cmd("221", "QUIT"); err != nil {
+	if _, err := ftp.cmd(StatusConnectionClosing, "QUIT"); err != nil {
 		return err
 	}
 
@@ -113,14 +113,14 @@ func (ftp *FTP) Quit() (err error) {
 
 // Noop will send a NOOP (no operation) to the server
 func (ftp *FTP) Noop() (err error) {
-	_, err = ftp.cmd("200", "NOOP")
+	_, err = ftp.cmd(StatusOK, "NOOP")
 	return
 }
 
 // RawCmd sends raw commands to the remote server. Returns response code as int and response as string.
 func (ftp *FTP) RawCmd(command string, args ...interface{}) (code int, line string) {
 	if ftp.debug {
-		log.Printf("Raw-> %s\n", fmt.Sprintf(command, args...), code)
+		log.Printf("Raw-> %s\n", fmt.Sprintf(command, args...))
 	}
 
 	code = -1
@@ -158,11 +158,11 @@ func (ftp *FTP) cmd(expects string, command string, args ...interface{}) (line s
 
 // Rename file on the remote host
 func (ftp *FTP) Rename(from string, to string) (err error) {
-	if _, err = ftp.cmd("350", "RNFR %s", from); err != nil {
+	if _, err = ftp.cmd(StatusActionPending, "RNFR %s", from); err != nil {
 		return
 	}
 
-	if _, err = ftp.cmd("250", "RNTO %s", to); err != nil {
+	if _, err = ftp.cmd(StatusActionOK, "RNTO %s", to); err != nil {
 		return
 	}
 
@@ -171,14 +171,14 @@ func (ftp *FTP) Rename(from string, to string) (err error) {
 
 // Mkd makes a directory on the remote host
 func (ftp *FTP) Mkd(path string) error {
-	_, err := ftp.cmd("257", "MKD %s", path)
+	_, err := ftp.cmd(StatusPathCreated, "MKD %s", path)
 	return err
 }
 
 // Pwd gets current path on the remote host
 func (ftp *FTP) Pwd() (path string, err error) {
 	var line string
-	if line, err = ftp.cmd("257", "PWD"); err != nil {
+	if line, err = ftp.cmd(StatusPathCreated, "PWD"); err != nil {
 		return
 	}
 
@@ -190,7 +190,7 @@ func (ftp *FTP) Pwd() (path string, err error) {
 
 // Cwd changes current working directory on remote host to path
 func (ftp *FTP) Cwd(path string) (err error) {
-	_, err = ftp.cmd("250", "CWD %s", path)
+	_, err = ftp.cmd(StatusActionOK, "CWD %s", path)
 	return
 }
 
@@ -205,7 +205,7 @@ func (ftp *FTP) Dele(path string) (err error) {
 		return
 	}
 
-	if !strings.HasPrefix(line, "250") {
+	if !strings.HasPrefix(line, StatusActionOK) {
 		return errors.New(line)
 	}
 
@@ -213,23 +213,23 @@ func (ftp *FTP) Dele(path string) (err error) {
 }
 
 // AuthTLS secures the ftp connection by using TLS
-func (ftp *FTP) AuthTLS(config tls.Config) error {
+func (ftp *FTP) AuthTLS(config *tls.Config) error {
 	if _, err := ftp.cmd("234", "AUTH TLS"); err != nil {
 		return err
 	}
 
 	// wrap tls on existing connection
-	ftp.tlsconfig = &config
+	ftp.tlsconfig = config
 
-	ftp.conn = tls.Client(ftp.conn, &config)
+	ftp.conn = tls.Client(ftp.conn, config)
 	ftp.writer = bufio.NewWriter(ftp.conn)
 	ftp.reader = bufio.NewReader(ftp.conn)
 
-	if _, err := ftp.cmd("200", "PBSZ 0"); err != nil {
+	if _, err := ftp.cmd(StatusOK, "PBSZ 0"); err != nil {
 		return err
 	}
 
-	if _, err := ftp.cmd("200", "PROT P"); err != nil {
+	if _, err := ftp.cmd(StatusOK, "PROT P"); err != nil {
 		return err
 	}
 
@@ -251,7 +251,7 @@ func (ftp *FTP) ReadAndDiscard() (int, error) {
 
 // Type changes transfer type.
 func (ftp *FTP) Type(t TypeCode) error {
-	_, err := ftp.cmd("200", "TYPE %s", t)
+	_, err := ftp.cmd(StatusOK, "TYPE %s", t)
 	return err
 }
 
@@ -373,7 +373,7 @@ func (ftp *FTP) newConnection(port int) (conn net.Conn, err error) {
 
 // Stor uploads file to remote host path, from r
 func (ftp *FTP) Stor(path string, r io.Reader) (err error) {
-	if err = ftp.Type("I"); err != nil {
+	if err = ftp.Type(TypeImage); err != nil {
 		return
 	}
 
@@ -420,9 +420,31 @@ func (ftp *FTP) Stor(path string, r io.Reader) (err error) {
 
 }
 
+func (ftp *FTP) Sys() error {
+	if err := ftp.send("SYS"); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (ftp *FTP) Stat(path string) (line string, err error) {
+	if err = ftp.send("STAT %s", path); err != nil {
+		return
+	}
+
+	if line, err = ftp.receive(); err != nil {
+		return
+	}
+	// TODO(vbatts) parse this line
+	//"213-status of /remfdata/all.zip:\r\n    09-12-15  04:07AM             37192705 all.zip\r\n213 End of status.\r\n"
+
+	return line, nil
+}
+
 // Retr retrieves file from remote host at path, using retrFn to read from the remote file.
 func (ftp *FTP) Retr(path string, retrFn RetrFunc) (s string, err error) {
-	if err = ftp.Type("I"); err != nil {
+	if err = ftp.Type(TypeImage); err != nil {
 		return
 	}
 
@@ -439,6 +461,7 @@ func (ftp *FTP) Retr(path string, retrFn RetrFunc) (s string, err error) {
 	if pconn, err = ftp.newConnection(port); err != nil {
 		return
 	}
+	defer pconn.Close()
 
 	var line string
 	if line, err = ftp.receive(); err != nil {
@@ -453,8 +476,6 @@ func (ftp *FTP) Retr(path string, retrFn RetrFunc) (s string, err error) {
 	if err = retrFn(pconn); err != nil {
 		return
 	}
-
-	pconn.Close()
 
 	if line, err = ftp.receive(); err != nil {
 		return
@@ -474,7 +495,7 @@ func (ftp *FTP) Retr(path string, retrFn RetrFunc) (s string, err error) {
 
 // List lists the path (or current directory)
 func (ftp *FTP) List(path string) (files []string, err error) {
-	if err = ftp.Type("A"); err != nil {
+	if err = ftp.Type(TypeASCII); err != nil {
 		return
 	}
 
