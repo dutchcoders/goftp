@@ -50,7 +50,7 @@ func walk(host string) (msg string) {
 
 	var err error
 	var connection *goftp.FTP
-	deep := 5
+	deep := 4
 
 	if connection, err = goftp.Connect(host); err != nil {
 		return "Can't connect ->" + err.Error()
