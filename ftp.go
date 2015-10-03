@@ -214,7 +214,7 @@ func (ftp *FTP) RawPassiveCmd(command string) (code int, response []string) {
 // Send raw commands, return response as string and response code as int
 func (ftp *FTP) RawCmd(command string, args ...interface{}) (code int, line string) {
 	if ftp.debug {
-		log.Printf("Raw-> %s\n", fmt.Sprintf(command, args...), code)
+		log.Printf("Raw-> %v (%v)\n", fmt.Sprintf(command, args...), code)
 	}
 
 	code = -1

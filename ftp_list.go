@@ -54,7 +54,7 @@ func (ftp *FTP) GetFilesList(path string) (files []string, directories []string,
 			return nil, nil, nil, errors.New("550 Requested action not taken. File unavailable.")
 		}
 		if code < 0 || code > 299 {
-			return nil, nil, nil, errors.New(fmt.Sprint("%v MLSD did not work ", code))
+			return nil, nil, nil, errors.New(fmt.Sprintf("%v MLSD did not work ", code))
 		}
 		return ftp.parseMLSD(response, path)
 	} else if ftp.supportedfeatures&EPLF > 0 {
@@ -65,7 +65,7 @@ func (ftp *FTP) GetFilesList(path string) (files []string, directories []string,
 			return nil, nil, nil, errors.New("550 Requested action not taken. File unavailable.")
 		}
 		if code < 0 || code > 299 {
-			return nil, nil, nil, errors.New(fmt.Sprint("%v EPLF did not work ", code))
+			return nil, nil, nil, errors.New(fmt.Sprintf("%v EPLF did not work ", code))
 		}
 		return ftp.parseEPLF(response, path)
 	} else if ftp.supportedfeatures&NLST > 0 {
@@ -76,7 +76,7 @@ func (ftp *FTP) GetFilesList(path string) (files []string, directories []string,
 			return nil, nil, nil, errors.New("550 Requested action not taken. File unavailable.")
 		}
 		if code < 0 || code > 299 {
-			return nil, nil, nil, errors.New(fmt.Sprint("%v NLST did not work ", code))
+			return nil, nil, nil, errors.New(fmt.Sprintf("%v NLST did not work ", code))
 		}
 		return ftp.parseNLST(response, path)
 	} else {
