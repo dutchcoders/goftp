@@ -489,8 +489,11 @@ func (ftp *FTP) List(path string) (files []string, err error) {
 
 		if !strings.HasPrefix(line, "150") {
 			// Really list is not working here
-			err = errors.New(line)
-			return
+			if !strings.HasPrefix(line, "125") {
+				// if network slowy,server will respone 125
+				err = errors.New(line)
+				return
+			}
 		}
 	}
 
