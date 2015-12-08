@@ -425,7 +425,7 @@ func (ftp *FTP) Retr(path string, retrFn RetrFunc) (s string, err error) {
 		return
 	}
 
-	if !strings.HasPrefix(line, "150") {
+	if !strings.HasPrefix(line, "150") || !strings.HasPrefix(line, "226") {
 		err = errors.New(line)
 		return
 	}
@@ -452,6 +452,92 @@ func (ftp *FTP) Retr(path string, retrFn RetrFunc) (s string, err error) {
 
 }*/
 
+// download as file
+
+func (ftp *FTP) Down(fname string, lname string) (b bool, err error){
+	var filesize int64
+	if filesize,err = ftp.Size(fname);err !=nil{
+		return
+	}
+	if err = ftp.Type("I");err != nil{
+		return
+	}
+	var port int
+	if port,err = ftp.Pasv();err !=nil{
+		return
+	}
+	if err = ftp.send("RETR %s", fname);err != nil{
+		return
+	}
+	var pconn net.Conn
+	if pconn,err = ftp.newConnection(port);err != nil{
+		return
+	}
+	defer pconn.Close()
+	var line string
+	if line,err = ftp.receive();err != nil{
+		return
+	}
+	if !strings.HasPrefix(line,"150"){
+		err = errors.New(line)
+		return
+	}
+	writeFile,err := os.OpenFile(lname,os.O_RDWR | os.O_APPEND |os.O_CREATE,0644)
+	if err != nil{
+		return
+	}
+	defer writeFile.Close()
+	
+	
+	for {
+		buffer := make([]byte,2048)
+		num,err1 := pconn.Read(buffer)
+		if err1 != nil && err1 != io.EOF{
+			err = err1
+			return
+		}
+		
+		if _,err2 := writeFile.Write(buffer);err !=nil{
+			err = err2
+			return
+		}
+		filesize = filesize - int64(num)
+		if filesize == 0{
+			break
+		}
+	}
+	return
+}
+
+// check file size
+func (ftp *FTP) Size(fname string) (filesize int64, err error){
+	if err = ftp.Type("A");err != nil{
+		return
+	}
+
+	if err = ftp.send("SIZE %s", fname);err != nil{
+		return
+	}
+	
+	var line string
+	if line,err = ftp.receive();err != nil{
+		return
+	}
+	if !strings.HasPrefix(line, "213"){
+		if !strings.HasPrefix(line, "125"){
+			err = errors.New(line)
+			return
+		}
+	}
+	filesizestring := strings.TrimSpace(strings.Split(line," ")[1])
+	if filesize,err = strconv.ParseInt(filesizestring,10,64);err != nil{
+		return
+	}
+	return
+}
+
+
+
 // list the path (or current directory)
 func (ftp *FTP) List(path string) (files []string, err error) {
 	if err = ftp.Type("A"); err != nil {
@@ -465,6 +551,7 @@ func (ftp *FTP) List(path string) (files []string, err error) {
 
 	// check if MLSD works
 	if err = ftp.send("MLSD %s", path); err != nil {
+		return
 	}
 
 	var pconn net.Conn
@@ -489,7 +576,7 @@ func (ftp *FTP) List(path string) (files []string, err error) {
 
 		if !strings.HasPrefix(line, "150") {
 			// Really list is not working here
-			if !strings.HasPrefix(line, "125") {
+			if !strings.HasPrefix(line, "125"){
 				// if network slowy,server will respone 125
 				err = errors.New(line)
 				return
