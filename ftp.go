@@ -608,7 +608,7 @@ func ConnectDbg(addr string) (*FTP, error) {
 
 	var line string
 
-	object := &FTP{conn: conn, addr: addr, reader: reader, writer: writer, debug: false}
+	object := &FTP{conn: conn, addr: addr, reader: reader, writer: writer, debug: true}
 	line, _ = object.receive()
 
 	log.Print(line)
