@@ -1,47 +1,44 @@
 # goftp documentation #
 
-**Table of Contents**  (*generated with [DocToc](http://doctoc.herokuapp.com/) and I know it does not work. *)
-
 ## Index
 ### Public functions
-- [type FTP](#)
-- [func  Connect](#)
-- [func  ConnectDbg](#)
-- [func (*FTP) AuthTLS](#)
-- [func (*FTP) Close](#)
-- [func (*FTP) Cwd](#)
-- [func (*FTP) Dele](#)
-- [func (*FTP) List](#)
-- [func (*FTP) Login](#)
-- [func (*FTP) Mkd](#)
-- [func (*FTP) Noop](#)
-- [func (*FTP) Pasv](#)
-- [func (*FTP) Pwd](#)
-- [func (*FTP) Quit](#)
-- [func (*FTP) RawCmd](#)
-- [func (*FTP) ReadAndDiscard](#)
-- [func (*FTP) Rename](#)
-- [func (*FTP) Retr](#)
-- [func (*FTP) Stor](#)
-- [func (*FTP) Type](#)
-- [func (*FTP) Walk](#)
-- [func (*FTP) WalkCustom](#)
-- [type RetrFunc](#)
-- [type WalkFunc](#)
+- [type FTP](#1)
+- [func Connect](#funcConnect)
+- [func  ConnectDbg](#3)
+- [func (*FTP) AuthTLS](#4)
+- [func (*FTP) Close](#5)
+- [func (*FTP) Cwd](#6)
+- [func (*FTP) Dele](#7)
+- [func (*FTP) List](#8)
+- [func (*FTP) Login](9#)
+- [func (*FTP) Mkd](#10)
+- [func (*FTP) Noop](#11)
+- [func (*FTP) Pasv](#12)
+- [func (*FTP) Pwd](#13)
+- [func (*FTP) Quit](#14)
+- [func (*FTP) RawCmd](#15)
+- [func (*FTP) ReadAndDiscard](#16)
+- [func (*FTP) Rename](#17)
+- [func (*FTP) Retr](#18)
+- [func (*FTP) Stor](#19)
+- [func (*FTP) Type](#20)
+- [func (*FTP) Walk](#21)
+- [func (*FTP) WalkCustom](#22)
+- [type RetrFunc](#23)
+- [type WalkFunc](#24)
 
 ### Notes on the different list commands for ftp
 
-- [How do I know which commands the target server supports?](#)
-- [MLSD](#)
-- [NLST](#)
-- [EPLF](#)
-- [LIST](#)
-- [Sample Code](#)
+- [How do I know which commands the target server supports?](#25)
+- [MLSD](#26)
+- [NLST](#27)
+- [EPLF](#28)
+- [LIST](#29)
+- [Sample Code](#30)
 
 ## Public functions ##
 
-#### func  Connect
-
+#### func Connect 
 ```go
 func Connect(addr string) (*FTP, error)
 ```
