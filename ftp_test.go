@@ -2,7 +2,8 @@ package goftp
 
 import "testing"
 import "os"
-import "strings"
+
+//import "strings"
 
 //import "strings"
 

@@ -1,6 +1,6 @@
 # goftp documentation #
 
-**Table of Contents**  (*generated with [DocToc](http://doctoc.herokuapp.com/)*)
+**Table of Contents**  (*generated with [DocToc](http://doctoc.herokuapp.com/) and I know it does not work. *)
 
 ## Index
 ### Public functions
@@ -28,7 +28,9 @@
 - [func (*FTP) WalkCustom](#)
 - [type RetrFunc](#)
 - [type WalkFunc](#)
+
 ### Notes on the different list commands for ftp
+
 - [How do I know which commands the target server supports?](#)
 - [MLSD](#)
 - [NLST](#)
@@ -484,7 +486,7 @@ References: [http://cr.yp.to/ftp/list/binls.html](http://cr.yp.to/ftp/list/binls
 package main
 
 		import (
-		    "github.com/dutchcoders/goftp"
+		    "github.com/VincenzoLaSpesa/goftp"
 		    "crypto/tls"
 		)
 
@@ -572,8 +574,8 @@ It walks trough an ftp server and print the folder structure like the tree comma
       	"strings"
       	"time"
 
-      	//"github.com/VincenzoLaSpesa/goftp"
-        "github.com/dutchcoders/goftp"  
+      	"github.com/VincenzoLaSpesa/goftp"
+        //"github.com/dutchcoders/goftp"  
       )
 
       var t rune
