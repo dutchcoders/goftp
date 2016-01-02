@@ -3,7 +3,8 @@ goftp
 
 Golang FTP library with Walk support.
 
-This page only contains a sample. For a more detailed documentation please refer to the [MANUAL](./MANUAL.md).
+This page only contains a sample. For a more detailed documentation please refer to the 
+[MANUAL](https://github.com/VincenzoLaSpesa/goftp/wiki).
 
 This fork contains unstable code.
 
