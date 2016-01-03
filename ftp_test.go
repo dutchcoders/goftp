@@ -168,3 +168,32 @@ func TestGetFilesListOnGoodServer(t *testing.T) {
 
 	connection.Close()
 }
+
+type getCodeResult struct {
+	code           int
+	beginMultiline bool
+	err            error
+}
+
+func TestGetCode(t *testing.T) {
+	var tests = []struct {
+		input string
+		want  getCodeResult
+	}{
+		{"220 test", getCodeResult{220, false, nil}},
+		{"220     test", getCodeResult{220, false, nil}},
+		{"  220     test", getCodeResult{220, false, nil}},
+		{"220- test", getCodeResult{220, true, nil}},
+		{"220asdf test", getCodeResult{-1, false, errNoCode}},
+		{"", getCodeResult{-1, false, errNoCode}},
+		{"\r\n", getCodeResult{-1, false, errNoCode}},
+	}
+	ftp := &FTP{}
+	for _, test := range tests {
+		code, beginMultiline, err := ftp.getCode(test.input)
+		res := getCodeResult{code, beginMultiline, err}
+		if res != test.want {
+			t.Errorf("want: %#v, expected: %#v", test.want, res)
+		}
+	}
+}
