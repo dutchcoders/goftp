@@ -133,7 +133,7 @@ func (ftp *FTP) Walk(path string, walkFn WalkFunc, deepLimit ...int) (err error)
 
 // send quit to the server and close the connection
 func (ftp *FTP) Quit() (err error) {
-	if _, err := ftp.cmd("221", "QUIT"); err != nil {
+	if _, err := ftp.cmd(221, "QUIT"); err != nil {
 		return err
 	}
 
@@ -145,7 +145,7 @@ func (ftp *FTP) Quit() (err error) {
 
 // will send a NOOP (no operation) to the server
 func (ftp *FTP) Noop() (err error) {
-	_, err = ftp.cmd("200", "NOOP")
+	_, err = ftp.cmd(200, "NOOP")
 	return
 }
 
@@ -234,7 +234,7 @@ func (ftp *FTP) RawCmd(command string, args ...interface{}) (code int, line stri
 }
 
 // private function to send command and compare return code with expects
-func (ftp *FTP) cmd(expects string, command string, args ...interface{}) (line string, err error) {
+func (ftp *FTP) cmd(expects int, command string, args ...interface{}) (line string, err error) {
 	if err = ftp.send(command, args...); err != nil {
 		return
 	}
@@ -243,7 +243,7 @@ func (ftp *FTP) cmd(expects string, command string, args ...interface{}) (line s
 		return
 	}
 
-	if !strings.HasPrefix(line, expects) {
+	if !ftp.HasCode(line, expects) {
 		err = errors.New(line)
 		return
 	}
@@ -253,11 +253,11 @@ func (ftp *FTP) cmd(expects string, command string, args ...interface{}) (line s
 
 // rename file
 func (ftp *FTP) Rename(from string, to string) (err error) {
-	if _, err = ftp.cmd("350", "RNFR %s", from); err != nil {
+	if _, err = ftp.cmd(350, "RNFR %s", from); err != nil {
 		return
 	}
 
-	if _, err = ftp.cmd("250", "RNTO %s", to); err != nil {
+	if _, err = ftp.cmd(250, "RNTO %s", to); err != nil {
 		return
 	}
 
@@ -266,14 +266,14 @@ func (ftp *FTP) Rename(from string, to string) (err error) {
 
 // make directory
 func (ftp *FTP) Mkd(path string) error {
-	_, err := ftp.cmd("257", "MKD %s", path)
+	_, err := ftp.cmd(257, "MKD %s", path)
 	return err
 }
 
 // get current path
 func (ftp *FTP) Pwd() (path string, err error) {
 	var line string
-	if line, err = ftp.cmd("257", "PWD"); err != nil {
+	if line, err = ftp.cmd(257, "PWD"); err != nil {
 		return
 	}
 
@@ -285,7 +285,7 @@ func (ftp *FTP) Pwd() (path string, err error) {
 
 // change current path
 func (ftp *FTP) Cwd(path string) (err error) {
-	_, err = ftp.cmd("250", "CWD %s", path)
+	_, err = ftp.cmd(250, "CWD %s", path)
 	return
 }
 
@@ -309,7 +309,7 @@ func (ftp *FTP) Dele(path string) (err error) {
 
 // secures the ftp connection by using TLS
 func (ftp *FTP) AuthTLS(config tls.Config) error {
-	if _, err := ftp.cmd("234", "AUTH TLS"); err != nil {
+	if _, err := ftp.cmd(234, "AUTH TLS"); err != nil {
 		return err
 	}
 
@@ -320,11 +320,11 @@ func (ftp *FTP) AuthTLS(config tls.Config) error {
 	ftp.writer = bufio.NewWriter(ftp.conn)
 	ftp.reader = bufio.NewReader(ftp.conn)
 
-	if _, err := ftp.cmd("200", "PBSZ 0"); err != nil {
+	if _, err := ftp.cmd(200, "PBSZ 0"); err != nil {
 		return err
 	}
 
-	if _, err := ftp.cmd("200", "PROT P"); err != nil {
+	if _, err := ftp.cmd(200, "PROT P"); err != nil {
 		return err
 	}
 
@@ -346,7 +346,7 @@ func (ftp *FTP) readAndDiscard() (int, error) {
 
 // change transfer type
 func (ftp *FTP) Type(t string) error {
-	_, err := ftp.cmd("200", "TYPE %s", t)
+	_, err := ftp.cmd(200, "TYPE %s", t)
 	return err
 }
 
@@ -434,7 +434,7 @@ func (ftp *FTP) send(command string, arguments ...interface{}) error {
 // enables passive data connection and returns port number
 func (ftp *FTP) Pasv() (port int, err error) {
 	var line string
-	if line, err = ftp.cmd("227", "PASV"); err != nil {
+	if line, err = ftp.cmd(227, "PASV"); err != nil {
 		return
 	}
 
@@ -570,7 +570,7 @@ func (ftp *FTP) Retr(path string, retrFn RetrFunc) (s string, err error) {
 
 // login to the server
 func (ftp *FTP) Login(username string, password string) (err error) {
-	if _, err = ftp.cmd("331", "USER %s", username); err != nil {
+	if _, err = ftp.cmd(331, "USER %s", username); err != nil {
 		if ftp.HasCode(err.Error(), 230) {
 			// Ok, probably anonymous server
 			// but login was fine, so return no error
@@ -580,7 +580,7 @@ func (ftp *FTP) Login(username string, password string) (err error) {
 		}
 	}
 
-	if _, err = ftp.cmd("230", "PASS %s", password); err != nil {
+	if _, err = ftp.cmd(230, "PASS %s", password); err != nil {
 		return
 	}
 
