@@ -300,7 +300,7 @@ func (ftp *FTP) Dele(path string) (err error) {
 		return
 	}
 
-	if !strings.HasPrefix(line, "250") {
+	if !ftp.HasCode(line, 250) {
 		return errors.New(line)
 	}
 
@@ -496,7 +496,7 @@ func (ftp *FTP) Stor(path string, r io.Reader) (err error) {
 		return
 	}
 
-	if !strings.HasPrefix(line, "150") {
+	if !ftp.HasCode(line, 150) {
 		err = errors.New(line)
 		return
 	}
@@ -511,7 +511,7 @@ func (ftp *FTP) Stor(path string, r io.Reader) (err error) {
 		return
 	}
 
-	if !strings.HasPrefix(line, "226") {
+	if !ftp.HasCode(line, 226) {
 		err = errors.New(line)
 		return
 	}
@@ -545,7 +545,7 @@ func (ftp *FTP) Retr(path string, retrFn RetrFunc) (s string, err error) {
 		return
 	}
 
-	if !strings.HasPrefix(line, "150") {
+	if !ftp.HasCode(line, 150) {
 		err = errors.New(line)
 		return
 	}
@@ -560,7 +560,7 @@ func (ftp *FTP) Retr(path string, retrFn RetrFunc) (s string, err error) {
 		return
 	}
 
-	if !strings.HasPrefix(line, "226") {
+	if !ftp.HasCode(line, 226) {
 		err = errors.New(line)
 		return
 	}
@@ -571,7 +571,7 @@ func (ftp *FTP) Retr(path string, retrFn RetrFunc) (s string, err error) {
 // login to the server
 func (ftp *FTP) Login(username string, password string) (err error) {
 	if _, err = ftp.cmd("331", "USER %s", username); err != nil {
-		if strings.HasPrefix(err.Error(), "230") {
+		if ftp.HasCode(err.Error(), 230) {
 			// Ok, probably anonymous server
 			// but login was fine, so return no error
 			err = nil
@@ -653,7 +653,7 @@ func (ftp *FTP) List(path string) (files []string, err error) {
 		return
 	}
 
-	if !strings.HasPrefix(line, "150") {
+	if !ftp.HasCode(line, 150) {
 		// MLSD failed, lets try LIST
 		if err = ftp.send("LIST %s", path); err != nil {
 			return
@@ -663,7 +663,7 @@ func (ftp *FTP) List(path string) (files []string, err error) {
 			return
 		}
 
-		if !strings.HasPrefix(line, "150") {
+		if !ftp.HasCode(line, 150) {
 			// Really list is not working here
 			err = errors.New(line)
 			return
@@ -690,10 +690,21 @@ func (ftp *FTP) List(path string) (files []string, err error) {
 		return
 	}
 
-	if !strings.HasPrefix(line, "226") {
+	if !ftp.HasCode(line, 226) {
 		err = errors.New(line)
 		return
 	}
 
 	return
+}
+
+func (ftp *FTP) HasCode(line string, code int) bool {
+	lineCode, _, err := ftp.getCode(line)
+	if err != nil {
+		return false
+	}
+	if lineCode == code {
+		return true
+	}
+	return false
 }

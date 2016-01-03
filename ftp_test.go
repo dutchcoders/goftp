@@ -199,3 +199,32 @@ func TestGetCode(t *testing.T) {
 		}
 	}
 }
+
+func TestHasCode(t *testing.T) {
+	var tests = []struct {
+		input string
+		code  int
+		want  bool
+	}{
+		{"220 test", 220, true},
+		{"220     test", 220, true},
+		{"  220     test", 220, true},
+		{"220- test", 220, true},
+		{"123-Firstline", 123, true},
+		{"123-First line", 123, true},
+
+		{"220asdf test", 220, false},
+		{"", 220, false},
+		{"\r\n", 220, false},
+		{"220 test", 550, false},
+		{"220     test", 550, false},
+	}
+	ftp := &FTP{}
+	for _, test := range tests {
+		hasCode := ftp.HasCode(test.input, test.code)
+		if hasCode != test.want {
+			t.Errorf("input %q, code: %d, want: %#v, expected: %#v", test.input,
+				test.code, test.want, hasCode)
+		}
+	}
+}
