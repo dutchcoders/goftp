@@ -29,6 +29,8 @@ func active(host string) (msg string) {
 	var err error
 	var connection *FTP
 
+	fmt.Println("Testing active command on -> " + host)
+
 	if connection, err = Connect(host); err != nil {
 		return "Can't connect ->" + err.Error()
 	}
@@ -48,6 +50,8 @@ func active(host string) (msg string) {
 func standard(host string) (msg string) {
 	var err error
 	var connection *FTP
+
+	fmt.Println("Testing standard (passive) command on -> " + host)
 
 	if connection, err = Connect(host); err != nil {
 		return "Can't connect ->" + err.Error()
@@ -72,6 +76,8 @@ func walk(host string) (msg string) {
 	deep := 2
 	filehit := 0
 
+	fmt.Println("Testing walk on -> " + host)
+
 	if connection, err = Connect(host); err != nil {
 		return "Can't connect ->" + err.Error()
 	}
@@ -93,7 +99,7 @@ func walk(host string) (msg string) {
 	if filehit < 1 {
 		return "Can't walk " + host + " -> No file found"
 	}
-
+	os.Stdout.Sync()
 	connection.Close()
 	return ""
 
@@ -155,6 +161,8 @@ func TestGetFilesListOnGoodServer(t *testing.T) {
 	var connection *FTP
 	host := uglyServer
 
+	fmt.Println("Testing file list parsing on -> " + host)
+
 	if connection, err = Connect(host); err != nil {
 		t.Error("Can't connect ->" + err.Error())
 	}
@@ -183,6 +191,7 @@ type getCodeResult struct {
 }
 
 func TestGetCode(t *testing.T) {
+
 	var tests = []struct {
 		input string
 		want  getCodeResult
