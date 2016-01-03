@@ -15,6 +15,7 @@ import (
 )
 
 var REGEX_PWD_PATH *regexp.Regexp = regexp.MustCompile(`\"(.*)\"`)
+var errNoCode = errors.New("No code")
 
 type FTP struct {
 	conn net.Conn
@@ -355,8 +356,32 @@ func (ftp *FTP) receiveLine() (string, error) {
 	if ftp.debug {
 		log.Printf("< %s", line)
 	}
-
 	return line, err
+}
+
+func (ftp *FTP) getCode(line string) (int, bool, error) {
+	trimmedLine := strings.Trim(line, " \r\n")
+	fields := strings.Fields(trimmedLine)
+	if len(fields) == 0 {
+		return 0, false, errNoCode
+	}
+
+	if len(fields[0]) == 3 {
+		if code, err := strconv.Atoi(fields[0]); err == nil {
+			return code, false, nil
+		}
+	} else if len(fields[0]) == 4 && fields[0][3] == '-' {
+		if code, err := strconv.Atoi(fields[0][:3]); err == nil {
+			return code, true, nil
+		}
+	} else {
+		if len(trimmedLine) >= 4 && trimmedLine[3] == '-' {
+			if code, err := strconv.Atoi(trimmedLine[:3]); err == nil {
+				return code, true, nil
+			}
+		}
+	}
+	return 0, false, errNoCode
 }
 
 func (ftp *FTP) receive() (string, error) {
@@ -365,25 +390,21 @@ func (ftp *FTP) receive() (string, error) {
 	if err != nil {
 		return line, err
 	}
-
-	if (len(line) >= 4) && (line[3] == '-') {
+	code, beginMultiline, err := ftp.getCode(line)
+	if err == nil && beginMultiline {
 		//Multiline response
-		closingCode := line[:3] + " "
+		closingCode := code
 		for {
 			str, err := ftp.receiveLine()
 			line = line + str
 			if err != nil {
 				return line, err
 			}
-			if len(str) < 4 {
-				if ftp.debug {
-					log.Println("Uncorrectly terminated response")
-				}
+			code, _, err := ftp.getCode(str)
+			if err == nil && code == closingCode {
 				break
 			} else {
-				if str[:4] == closingCode {
-					break
-				}
+				//check error codes 5xx 4xx
 			}
 		}
 	}
