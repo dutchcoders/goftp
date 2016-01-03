@@ -15,7 +15,8 @@ var badServer string
 
 func init() {
 	//ProFTPD 1.3.5 Server (Debian)
-	goodServer = "bo.mirror.garr.it:21"
+	//goodServer = "bo.mirror.garr.it:21"
+	goodServer = "ftp.fu-berlin.de:21"
 
 	//Symantec EMEA FTP Server
 	badServer = "ftp.packardbell.com:21"
@@ -68,7 +69,8 @@ func standard(host string) (msg string) {
 func walk(host string) (msg string) {
 	var err error
 	var connection *FTP
-	deep := 5
+	deep := 2
+	filehit := 0
 
 	if connection, err = Connect(host); err != nil {
 		return "Can't connect ->" + err.Error()
@@ -79,14 +81,19 @@ func walk(host string) (msg string) {
 
 	err = connection.Walk("/", func(path string, info os.FileMode, err error) error {
 		fmt.Print("--->")
+		filehit = filehit + 1
 		fmt.Println(path)
 		return nil
 
 	}, deep)
 	//if err != nil && !strings.HasPrefix(err.Error(), "550") {
 	if err != nil {
-		return "Can't walk ->" + err.Error()
+		return "Can't walk " + host + " ->" + err.Error()
 	}
+	if filehit < 1 {
+		return "Can't walk " + host + " -> No file found"
+	}
+
 	connection.Close()
 	return ""
 
