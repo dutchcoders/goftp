@@ -187,6 +187,8 @@ func TestGetCode(t *testing.T) {
 		{"220asdf test", getCodeResult{0, false, errNoCode}},
 		{"", getCodeResult{0, false, errNoCode}},
 		{"\r\n", getCodeResult{0, false, errNoCode}},
+		{"123-Firstline", getCodeResult{123, true, nil}},
+		{"123-First line", getCodeResult{123, true, nil}},
 	}
 	ftp := &FTP{}
 	for _, test := range tests {

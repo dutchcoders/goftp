@@ -360,7 +360,8 @@ func (ftp *FTP) receiveLine() (string, error) {
 }
 
 func (ftp *FTP) getCode(line string) (int, bool, error) {
-	fields := strings.Fields(strings.Trim(line, " \r\n"))
+	trimmedLine := strings.Trim(line, " \r\n")
+	fields := strings.Fields(trimmedLine)
 	if len(fields) == 0 {
 		return 0, false, errNoCode
 	}
@@ -372,6 +373,12 @@ func (ftp *FTP) getCode(line string) (int, bool, error) {
 	} else if len(fields[0]) == 4 && fields[0][3] == '-' {
 		if code, err := strconv.Atoi(fields[0][:3]); err == nil {
 			return code, true, nil
+		}
+	} else {
+		if len(trimmedLine) >= 4 && trimmedLine[3] == '-' {
+			if code, err := strconv.Atoi(trimmedLine[:3]); err == nil {
+				return code, true, nil
+			}
 		}
 	}
 	return 0, false, errNoCode
