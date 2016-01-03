@@ -184,9 +184,9 @@ func TestGetCode(t *testing.T) {
 		{"220     test", getCodeResult{220, false, nil}},
 		{"  220     test", getCodeResult{220, false, nil}},
 		{"220- test", getCodeResult{220, true, nil}},
-		{"220asdf test", getCodeResult{-1, false, errNoCode}},
-		{"", getCodeResult{-1, false, errNoCode}},
-		{"\r\n", getCodeResult{-1, false, errNoCode}},
+		{"220asdf test", getCodeResult{0, false, errNoCode}},
+		{"", getCodeResult{0, false, errNoCode}},
+		{"\r\n", getCodeResult{0, false, errNoCode}},
 	}
 	ftp := &FTP{}
 	for _, test := range tests {

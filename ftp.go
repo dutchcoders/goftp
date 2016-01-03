@@ -362,7 +362,7 @@ func (ftp *FTP) receiveLine() (string, error) {
 func (ftp *FTP) getCode(line string) (int, bool, error) {
 	fields := strings.Fields(strings.Trim(line, " \r\n"))
 	if len(fields) == 0 {
-		return -1, false, errNoCode
+		return 0, false, errNoCode
 	}
 
 	if len(fields[0]) == 3 {
@@ -374,7 +374,7 @@ func (ftp *FTP) getCode(line string) (int, bool, error) {
 			return code, true, nil
 		}
 	}
-	return -1, false, errNoCode
+	return 0, false, errNoCode
 }
 
 func (ftp *FTP) receive() (string, error) {
