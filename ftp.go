@@ -400,8 +400,8 @@ func (ftp *FTP) receive() (string, error) {
 			if err != nil {
 				return line, err
 			}
-			code, _, err := ftp.getCode(str)
-			if err == nil && code == closingCode {
+			code, ml, err := ftp.getCode(str)
+			if err == nil && !ml && code == closingCode {
 				break
 			} else {
 				//check error codes 5xx 4xx
