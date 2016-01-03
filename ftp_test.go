@@ -207,6 +207,9 @@ func TestGetCode(t *testing.T) {
 		{"123-First line", getCodeResult{123, true, nil}},
 	}
 	ftp := &FTP{}
+
+	fmt.Println("Testing getCodeResult")
+
 	for _, test := range tests {
 		code, beginMultiline, err := ftp.getCode(test.input)
 		res := getCodeResult{code, beginMultiline, err}
@@ -236,6 +239,7 @@ func TestHasCode(t *testing.T) {
 		{"220     test", 550, false},
 	}
 	ftp := &FTP{}
+	fmt.Println("Testing hasCode")
 	for _, test := range tests {
 		hasCode := ftp.HasCode(test.input, test.code)
 		if hasCode != test.want {
