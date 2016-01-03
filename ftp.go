@@ -133,7 +133,7 @@ func (ftp *FTP) Walk(path string, walkFn WalkFunc, deepLimit ...int) (err error)
 
 // send quit to the server and close the connection
 func (ftp *FTP) Quit() (err error) {
-	if _, err := ftp.cmd(221, "QUIT"); err != nil {
+	if _, err := ftp.cmd(CodeServiceClosingControlConnection, "QUIT"); err != nil {
 		return err
 	}
 
@@ -145,7 +145,7 @@ func (ftp *FTP) Quit() (err error) {
 
 // will send a NOOP (no operation) to the server
 func (ftp *FTP) Noop() (err error) {
-	_, err = ftp.cmd(200, "NOOP")
+	_, err = ftp.cmd(CodeCommandOk, "NOOP")
 	return
 }
 
@@ -253,11 +253,11 @@ func (ftp *FTP) cmd(expects int, command string, args ...interface{}) (line stri
 
 // rename file
 func (ftp *FTP) Rename(from string, to string) (err error) {
-	if _, err = ftp.cmd(350, "RNFR %s", from); err != nil {
+	if _, err = ftp.cmd(CodeRequestedFileActionPending, "RNFR %s", from); err != nil {
 		return
 	}
 
-	if _, err = ftp.cmd(250, "RNTO %s", to); err != nil {
+	if _, err = ftp.cmd(CodeRequestedFileActionOk, "RNTO %s", to); err != nil {
 		return
 	}
 
@@ -266,14 +266,14 @@ func (ftp *FTP) Rename(from string, to string) (err error) {
 
 // make directory
 func (ftp *FTP) Mkd(path string) error {
-	_, err := ftp.cmd(257, "MKD %s", path)
+	_, err := ftp.cmd(CodePathnameCreated, "MKD %s", path)
 	return err
 }
 
 // get current path
 func (ftp *FTP) Pwd() (path string, err error) {
 	var line string
-	if line, err = ftp.cmd(257, "PWD"); err != nil {
+	if line, err = ftp.cmd(CodePathnameCreated, "PWD"); err != nil {
 		return
 	}
 
@@ -285,7 +285,7 @@ func (ftp *FTP) Pwd() (path string, err error) {
 
 // change current path
 func (ftp *FTP) Cwd(path string) (err error) {
-	_, err = ftp.cmd(250, "CWD %s", path)
+	_, err = ftp.cmd(CodeRequestedFileActionOk, "CWD %s", path)
 	return
 }
 
@@ -300,7 +300,7 @@ func (ftp *FTP) Dele(path string) (err error) {
 		return
 	}
 
-	if !ftp.HasCode(line, 250) {
+	if !ftp.HasCode(line, CodeRequestedFileActionOk) {
 		return errors.New(line)
 	}
 
@@ -309,7 +309,7 @@ func (ftp *FTP) Dele(path string) (err error) {
 
 // secures the ftp connection by using TLS
 func (ftp *FTP) AuthTLS(config tls.Config) error {
-	if _, err := ftp.cmd(234, "AUTH TLS"); err != nil {
+	if _, err := ftp.cmd(CodeAuthMechanismAccepted, "AUTH TLS"); err != nil {
 		return err
 	}
 
@@ -320,11 +320,11 @@ func (ftp *FTP) AuthTLS(config tls.Config) error {
 	ftp.writer = bufio.NewWriter(ftp.conn)
 	ftp.reader = bufio.NewReader(ftp.conn)
 
-	if _, err := ftp.cmd(200, "PBSZ 0"); err != nil {
+	if _, err := ftp.cmd(CodeCommandOk, "PBSZ 0"); err != nil {
 		return err
 	}
 
-	if _, err := ftp.cmd(200, "PROT P"); err != nil {
+	if _, err := ftp.cmd(CodeCommandOk, "PROT P"); err != nil {
 		return err
 	}
 
@@ -346,7 +346,7 @@ func (ftp *FTP) readAndDiscard() (int, error) {
 
 // change transfer type
 func (ftp *FTP) Type(t string) error {
-	_, err := ftp.cmd(200, "TYPE %s", t)
+	_, err := ftp.cmd(CodeCommandOk, "TYPE %s", t)
 	return err
 }
 
@@ -434,7 +434,7 @@ func (ftp *FTP) send(command string, arguments ...interface{}) error {
 // enables passive data connection and returns port number
 func (ftp *FTP) Pasv() (port int, err error) {
 	var line string
-	if line, err = ftp.cmd(227, "PASV"); err != nil {
+	if line, err = ftp.cmd(CodeEnteringPassiveMode, "PASV"); err != nil {
 		return
 	}
 
@@ -496,7 +496,7 @@ func (ftp *FTP) Stor(path string, r io.Reader) (err error) {
 		return
 	}
 
-	if !ftp.HasCode(line, 150) {
+	if !ftp.HasCode(line, CodeFileStatusOk) {
 		err = errors.New(line)
 		return
 	}
@@ -511,7 +511,7 @@ func (ftp *FTP) Stor(path string, r io.Reader) (err error) {
 		return
 	}
 
-	if !ftp.HasCode(line, 226) {
+	if !ftp.HasCode(line, CodeClosingDataConnection) {
 		err = errors.New(line)
 		return
 	}
@@ -545,7 +545,7 @@ func (ftp *FTP) Retr(path string, retrFn RetrFunc) (s string, err error) {
 		return
 	}
 
-	if !ftp.HasCode(line, 150) {
+	if !ftp.HasCode(line, CodeFileStatusOk) {
 		err = errors.New(line)
 		return
 	}
@@ -560,7 +560,7 @@ func (ftp *FTP) Retr(path string, retrFn RetrFunc) (s string, err error) {
 		return
 	}
 
-	if !ftp.HasCode(line, 226) {
+	if !ftp.HasCode(line, CodeClosingDataConnection) {
 		err = errors.New(line)
 		return
 	}
@@ -570,8 +570,8 @@ func (ftp *FTP) Retr(path string, retrFn RetrFunc) (s string, err error) {
 
 // login to the server
 func (ftp *FTP) Login(username string, password string) (err error) {
-	if _, err = ftp.cmd(331, "USER %s", username); err != nil {
-		if ftp.HasCode(err.Error(), 230) {
+	if _, err = ftp.cmd(CodeUserNameOkNeedPassword, "USER %s", username); err != nil {
+		if ftp.HasCode(err.Error(), CodeUserLoggedIn) {
 			// Ok, probably anonymous server
 			// but login was fine, so return no error
 			err = nil
@@ -580,7 +580,7 @@ func (ftp *FTP) Login(username string, password string) (err error) {
 		}
 	}
 
-	if _, err = ftp.cmd(230, "PASS %s", password); err != nil {
+	if _, err = ftp.cmd(CodeUserLoggedIn, "PASS %s", password); err != nil {
 		return
 	}
 
@@ -653,7 +653,7 @@ func (ftp *FTP) List(path string) (files []string, err error) {
 		return
 	}
 
-	if !ftp.HasCode(line, 150) {
+	if !ftp.HasCode(line, CodeFileStatusOk) {
 		// MLSD failed, lets try LIST
 		if err = ftp.send("LIST %s", path); err != nil {
 			return
@@ -663,7 +663,7 @@ func (ftp *FTP) List(path string) (files []string, err error) {
 			return
 		}
 
-		if !ftp.HasCode(line, 150) {
+		if !ftp.HasCode(line, CodeFileStatusOk) {
 			// Really list is not working here
 			err = errors.New(line)
 			return
@@ -690,7 +690,7 @@ func (ftp *FTP) List(path string) (files []string, err error) {
 		return
 	}
 
-	if !ftp.HasCode(line, 226) {
+	if !ftp.HasCode(line, CodeClosingDataConnection) {
 		err = errors.New(line)
 		return
 	}
