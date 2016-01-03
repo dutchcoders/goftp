@@ -6,8 +6,6 @@ Golang FTP library with Walk support.
 This page only contains a sample. For a more detailed documentation please refer to the 
 [MANUAL](https://github.com/VincenzoLaSpesa/goftp/wiki).
 
-This fork contains unstable code.
-
 ## Features
 
 * AUTH TLS support
@@ -15,7 +13,7 @@ This fork contains unstable code.
 
 ## Sample
 ```go
-		package main
+	package main
 
     import (
         "crypto/sha256"
@@ -100,8 +98,9 @@ This fork contains unstable code.
 
 Contributions are welcome.
 
-* Sourav Datta: for his work on the anonymous user login and multiline return status.
-* Vincenzo La Spesa: for his work on resolving login issues with specific ftp servers. 
+* [Sourav Datta](https://github.com/souravdatta): for his work on the anonymous user login and multiline return status.
+* [Vincenzo La Spesa](https://github.com/VincenzoLaSpesa): for his work on resolving login issues with specific ftp servers.
+* [Dmitriy Denisov](https://github.com/zaz600): for his work on resolving parsing issues with non-standard multiline response. 
 
 
 ## Creators
