@@ -134,7 +134,7 @@ func (ftp *FTP) WalkCustom(path string, walkFn WalkFunc, errHandler ErrorHandler
 	return
 }
 
-// Walk - walks recursively through path and call walkfunc for each file.
+// Walk walks recursively through path and call walkfunc for each file.
 // - links are ignored.
 // - the optional parameter deepLimit controls the max level of recursion.
 // - recursion stops on first error , *always*.
@@ -325,15 +325,15 @@ func (ftp *FTP) Dele(path string) (err error) {
 }
 
 //AuthTLS secures the ftp connection by using TLS
-func (ftp *FTP) AuthTLS(config tls.Config) error {
+func (ftp *FTP) AuthTLS(config *tls.Config) error {
 	if _, err := ftp.cmd(CodeAuthMechanismAccepted, "AUTH TLS"); err != nil {
 		return err
 	}
 
 	// wrap tls on existing connection
-	ftp.tlsconfig = &config
+	ftp.tlsconfig = config
 
-	ftp.conn = tls.Client(ftp.conn, &config)
+	ftp.conn = tls.Client(ftp.conn, config)
 	ftp.writer = bufio.NewWriter(ftp.conn)
 	ftp.reader = bufio.NewReader(ftp.conn)
 
