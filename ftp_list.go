@@ -10,7 +10,7 @@ import (
 	"strings"
 )
 
-// use FEAT to retrieve server features.
+//getServerFeatures use FEAT to retrieve server features.
 func (ftp *FTP) getServerFeatures() (features uint32) {
 	features = 0
 	code, str := ftp.RawCmd("FEAT")
@@ -37,8 +37,8 @@ func (ftp *FTP) getServerFeatures() (features uint32) {
 	return features
 }
 
-// list the path (or current directory) and parse it.
-// Return an array with the files, one with the directories and one with the links
+//GetFilesList list the path (or current directory) and parse it.
+//Return an array with the files, one with the directories and one with the links
 func (ftp *FTP) GetFilesList(path string) (files []string, directories []string, links []string, err error) {
 	if ftp.supportedfeatures == 0 {
 		ftp.supportedfeatures = ftp.getServerFeatures()
@@ -51,10 +51,10 @@ func (ftp *FTP) GetFilesList(path string) (files []string, directories []string,
 		code, response := ftp.RawPassiveCmd("MLSD " + path)
 
 		if code == 550 {
-			return nil, nil, nil, errors.New("550 Requested action not taken. File unavailable.")
+			return nil, nil, nil, errors.New("550 Requested action not taken. File unavailable")
 		}
 		if code < 0 || code > 299 {
-			return nil, nil, nil, errors.New(fmt.Sprintf("%v MLSD did not work ", code))
+			return nil, nil, nil, fmt.Errorf("%v MLSD did not work ", code)
 		}
 		return ftp.parseMLSD(response, path)
 	} else if ftp.supportedfeatures&EPLF > 0 {
@@ -62,10 +62,10 @@ func (ftp *FTP) GetFilesList(path string) (files []string, directories []string,
 		code, response := ftp.RawPassiveCmd("EPLF " + path)
 
 		if code == 550 {
-			return nil, nil, nil, errors.New("550 Requested action not taken. File unavailable.")
+			return nil, nil, nil, errors.New("550 Requested action not taken. File unavailable")
 		}
 		if code < 0 || code > 299 {
-			return nil, nil, nil, errors.New(fmt.Sprintf("%v EPLF did not work ", code))
+			return nil, nil, nil, fmt.Errorf("%v EPLF did not work ", code)
 		}
 		return ftp.parseEPLF(response, path)
 	} else if ftp.supportedfeatures&NLST > 0 {
@@ -73,31 +73,30 @@ func (ftp *FTP) GetFilesList(path string) (files []string, directories []string,
 		code, response := ftp.RawPassiveCmd("NLST " + path)
 
 		if code == 550 {
-			return nil, nil, nil, errors.New("550 Requested action not taken. File unavailable.")
+			return nil, nil, nil, errors.New("550 Requested action not taken. File unavailable")
 		}
 		if code < 0 || code > 299 {
-			return nil, nil, nil, errors.New(fmt.Sprintf("%v NLST did not work ", code))
+			return nil, nil, nil, fmt.Errorf("%v NLST did not work ", code)
 		}
 		return ftp.parseNLST(response, path)
-	} else {
-		//fmt.Println("Using LIST")
-		code, response := ftp.RawPassiveCmd("LIST " + path)
-		//fmt.Println(response)
-		if code == 550 {
-			return nil, nil, nil, errors.New("550 Requested action not taken. File unavailable.")
-		}
-		if code < 0 || code > 299 {
-			return nil, nil, nil, errors.New("LIST did not work")
-		}
-		return ftp.parseUnixLIST(response, path)
 	}
+	//fmt.Println("Using LIST")
+	code, response := ftp.RawPassiveCmd("LIST " + path)
+	//fmt.Println(response)
+	if code == 550 {
+		return nil, nil, nil, errors.New("550 Requested action not taken. File unavailable")
+	}
+	if code < 0 || code > 299 {
+		return nil, nil, nil, errors.New("LIST did not work")
+	}
+	return ftp.parseUnixLIST(response, path)
 }
 
-// Parse the response of a MLSD
-// Return an array with the files, one with the directories and one with the links
+//parseMLSD parse the response of a MLSD
+//Return an array with the files, one with the directories and one with the links
 func (ftp *FTP) parseMLSD(data []string, basePath string) (files []string, directories []string, links []string, err error) {
 	for _, line := range data {
-		_, t, subpath := parseLine_MLST(line)
+		_, t, subpath := parseLineMLST(line)
 
 		switch t {
 		case "dir":
@@ -116,8 +115,8 @@ func (ftp *FTP) parseMLSD(data []string, basePath string) (files []string, direc
 	return files, directories, links, err
 }
 
-// Parse a single MLST line
-func parseLine_MLST(line string) (perm string, t string, filename string) {
+//parseLineMLST Parse a single MLST line
+func parseLineMLST(line string) (perm string, t string, filename string) {
 	for _, v := range strings.Split(line, ";") {
 		v2 := strings.Split(v, "=")
 
@@ -138,22 +137,20 @@ func parseLine_MLST(line string) (perm string, t string, filename string) {
 	return
 }
 
-// Parse the response of a EPLF
-// Return an array with the files, one with the directories and one with the links
+//parseEPLF parse the response of a EPLF
+//Return an array with the files, one with the directories and one with the links
 func (ftp *FTP) parseEPLF(data []string, basePath string) (files []string, directories []string, links []string, err error) {
-	fmt.Errorf("Not implemented! (EPLF)\n")
 	return nil, nil, nil, errors.New("Not implemented! (EPLF)")
 }
 
-// Parse the response of a NLST
-// Return an array with the files, one with the directories and one with the links
+//parseNLST parse the response of a NLST
+//Return an array with the files, one with the directories and one with the links
 func (ftp *FTP) parseNLST(data []string, basePath string) (files []string, directories []string, links []string, err error) {
-	fmt.Errorf("Not implemented! (NLST)\n")
 	return nil, nil, nil, errors.New("Not implemented! (NLST)")
 }
 
-// Parse the response of a LIST
-// Return an array with the files, one with the directories and one with the links
+//parseUnixLIST parse the response of a LIST
+//Return an array with the files, one with the directories and one with the links
 func (ftp *FTP) parseUnixLIST(data []string, basePath string) (files []string, directories []string, links []string, err error) {
 	var pattern = regexp.MustCompile(`([-ld])` + //dir,link flags -dbclps
 		`([-rwxs]+)\s+` + //permissions
@@ -183,15 +180,15 @@ func (ftp *FTP) parseUnixLIST(data []string, basePath string) (files []string, d
 	sum := len(files) + len(directories) + len(links)
 	if sum > 0 {
 		return files, directories, links, nil
-	} else { //empty folder
-		if ftp.debug {
-			log.Printf("Empty folder")
-		}
-		return nil, nil, nil, nil
 	}
+	//empty folder
+	if ftp.debug {
+		log.Printf("Empty folder")
+	}
+	return nil, nil, nil, nil
 }
 
-// extract single lines from a buffered reader
+//splitLines extract single lines from a buffered reader
 func (ftp *FTP) splitLines(reader *bufio.Reader) (files []string, err error) {
 	var line string
 	for {

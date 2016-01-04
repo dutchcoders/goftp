@@ -1,13 +1,10 @@
 package goftp
 
-import "testing"
-import "os"
-
-//import "strings"
-
-//import "strings"
-
-import "fmt"
+import (
+	"fmt"
+	"os"
+	"testing"
+)
 
 var goodServer string
 var uglyServer string
@@ -62,9 +59,8 @@ func standard(host string) (msg string) {
 	code, str := connection.RawCmd("FEAT")
 	if code < 0 || code > 299 {
 		return fmt.Sprintf("Can't FEAT -> %d", code)
-	} else {
-		fmt.Println(str)
 	}
+	fmt.Println(str)
 
 	connection.Close()
 	return ""
