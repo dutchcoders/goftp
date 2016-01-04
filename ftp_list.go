@@ -155,7 +155,7 @@ func (ftp *FTP) parseNLST(data []string, basePath string) (files []string, direc
 // Parse the response of a LIST
 // Return an array with the files, one with the directories and one with the links
 func (ftp *FTP) parseUnixLIST(data []string, basePath string) (files []string, directories []string, links []string, err error) {
-	var pattern = regexp.MustCompile(`([-ld])([-rwx]+)\s{2,}\d+\s(\d|\w+)\s{2,}(\(\?\)|\d+|\w+)\s{2,}(\d+)\s*(\w+\s*\d+\s*\d+\:*\d*)\s(\S+)`)
+	var pattern = regexp.MustCompile(`([-ld])([-rwx]+)\s{2,}\d+\s(\d|\w+)\s{2,}(\(\?\)|\d+|[\w\-]+)\s{1,}(\d+)\s*(\w+\s*\d+\s*\d+\:*\d*)\s(\S+)`)
 	for _, line := range data {
 		match := pattern.FindStringSubmatch(line)
 		/*for i, val := range match {
