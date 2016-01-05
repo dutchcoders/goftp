@@ -14,21 +14,19 @@ import (
 	"strings"
 )
 
-var regexPwdPath = regexp.MustCompile(`\"(.*)\"`)
-var errNoCode = errors.New("No code")
+var (
+	regexPwdPath = regexp.MustCompile(`\"(.*)\"`)
+	errNoCode    = errors.New("No code")
+)
 
 //FTP is ftp client
 type FTP struct {
-	conn net.Conn
-
-	addr string
-
-	debug     bool
-	tlsconfig *tls.Config
-
-	reader *bufio.Reader
-	writer *bufio.Writer
-
+	conn              net.Conn
+	addr              string
+	debug             bool
+	tlsconfig         *tls.Config
+	reader            *bufio.Reader
+	writer            *bufio.Writer
 	supportedfeatures uint32
 }
 
