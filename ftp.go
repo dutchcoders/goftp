@@ -14,40 +14,54 @@ import (
 	"strings"
 )
 
-var REGEX_PWD_PATH *regexp.Regexp = regexp.MustCompile(`\"(.*)\"`)
-var errNoCode = errors.New("No code")
+var (
+	regexPwdPath = regexp.MustCompile(`\"(.*)\"`)
+	errNoCode    = errors.New("No code")
+)
 
+//FTP is ftp client
 type FTP struct {
-	conn net.Conn
-
-	addr string
-
-	debug     bool
-	tlsconfig *tls.Config
-
-	reader *bufio.Reader
-	writer *bufio.Writer
-
+	conn              net.Conn
+	addr              string
+	debug             bool
+	tlsconfig         *tls.Config
+	reader            *bufio.Reader
+	writer            *bufio.Writer
 	supportedfeatures uint32
 }
 
 const (
+	//MLSD server can return directory listing in machine readable format.
+	//Supported
 	MLSD = 1
+	//NLST server can return a list of filenames in the given directory, with no other information.
+	//Not supported
 	NLST = 2
+	//EPLF server can return directory listing in "Easily Parsed LIST Format"
+	//Not supported
 	EPLF = 4
-	BAD  = 1 >> 32 // this server only supports LIST
+	//BAD this server only supports LIST output format
+	BAD = 1 >> 32
+
 //	STUBBORN = -2
 )
 
+//Close connection, disconnect from server
 func (ftp *FTP) Close() {
 	ftp.conn.Close()
 }
 
+// WalkFunc is the type of the function called for each file or directory
+// visited by FTP.Walk
 type WalkFunc func(path string, info os.FileMode, err error) error
+
+//RetrFunc is type of the function called in FTP.Retr
 type RetrFunc func(r io.Reader) error
+
+//ErrorHandlerFunc is the type of the function called on error in FTP.WalkCustom
 type ErrorHandlerFunc func(pwd string, errorCode int, errorStr string, shouldBeSkippable bool) (skippable bool, err error)
 
-// walks recursively through path and call walkfunc for each file.
+// WalkCustom walks recursively through path and call walkFunc for each file.
 // - links are ignored.
 // - the optional parameter deepLimit controls the max level of recursion.
 // - recursion stops only if errHandler returns false ( or if it's not defined )
@@ -118,7 +132,7 @@ func (ftp *FTP) WalkCustom(path string, walkFn WalkFunc, errHandler ErrorHandler
 	return
 }
 
-// walks recursively through path and call walkfunc for each file.
+// Walk walks recursively through path and call walkfunc for each file.
 // - links are ignored.
 // - the optional parameter deepLimit controls the max level of recursion.
 // - recursion stops on first error , *always*.
@@ -131,7 +145,7 @@ func (ftp *FTP) Walk(path string, walkFn WalkFunc, deepLimit ...int) (err error)
 	return ftp.WalkCustom(path, walkFn, nil, deep)
 }
 
-// send quit to the server and close the connection
+//Quit send quit to the server and close the connection
 func (ftp *FTP) Quit() (err error) {
 	if _, err := ftp.cmd(CodeServiceClosingControlConnection, "QUIT"); err != nil {
 		return err
@@ -143,13 +157,14 @@ func (ftp *FTP) Quit() (err error) {
 	return nil
 }
 
-// will send a NOOP (no operation) to the server
+//Noop send a NOOP (no operation) to the server
 func (ftp *FTP) Noop() (err error) {
 	_, err = ftp.cmd(CodeCommandOk, "NOOP")
 	return
 }
 
-// Open a passive connection with pasv, send a raw command, retrieve the response, close the connection, return the response
+//RawPassiveCmd open a passive connection with pasv, send a raw command,
+//retrieve the response, close the connection, return the response
 func (ftp *FTP) RawPassiveCmd(command string) (code int, response []string) {
 	var port int
 	var pconn net.Conn
@@ -212,7 +227,7 @@ func (ftp *FTP) RawPassiveCmd(command string) (code int, response []string) {
 	return code, response
 }
 
-// Send raw commands, return response as string and response code as int
+//RawCmd send raw commands, return response as string and response code as int
 func (ftp *FTP) RawCmd(command string, args ...interface{}) (code int, line string) {
 	if ftp.debug {
 		log.Printf("Raw-> %v (%v)\n", fmt.Sprintf(command, args...), code)
@@ -233,7 +248,7 @@ func (ftp *FTP) RawCmd(command string, args ...interface{}) (code int, line stri
 	return code, line
 }
 
-// private function to send command and compare return code with expects
+//cmd private function to send command and compare return code with expects
 func (ftp *FTP) cmd(expects int, command string, args ...interface{}) (line string, err error) {
 	if err = ftp.send(command, args...); err != nil {
 		return
@@ -251,7 +266,7 @@ func (ftp *FTP) cmd(expects int, command string, args ...interface{}) (line stri
 	return
 }
 
-// rename file
+//Rename rename file
 func (ftp *FTP) Rename(from string, to string) (err error) {
 	if _, err = ftp.cmd(CodeRequestedFileActionPending, "RNFR %s", from); err != nil {
 		return
@@ -264,32 +279,32 @@ func (ftp *FTP) Rename(from string, to string) (err error) {
 	return
 }
 
-// make directory
+//Mkd make directory
 func (ftp *FTP) Mkd(path string) error {
 	_, err := ftp.cmd(CodePathnameCreated, "MKD %s", path)
 	return err
 }
 
-// get current path
+//Pwd get current path
 func (ftp *FTP) Pwd() (path string, err error) {
 	var line string
 	if line, err = ftp.cmd(CodePathnameCreated, "PWD"); err != nil {
 		return
 	}
 
-	res := REGEX_PWD_PATH.FindAllStringSubmatch(line[4:], -1)
+	res := regexPwdPath.FindAllStringSubmatch(line[4:], -1)
 
 	path = res[0][1]
 	return
 }
 
-// change current path
+//Cwd change current path
 func (ftp *FTP) Cwd(path string) (err error) {
 	_, err = ftp.cmd(CodeRequestedFileActionOk, "CWD %s", path)
 	return
 }
 
-// delete file
+//Dele delete file
 func (ftp *FTP) Dele(path string) (err error) {
 	if err = ftp.send("DELE %s", path); err != nil {
 		return
@@ -307,16 +322,16 @@ func (ftp *FTP) Dele(path string) (err error) {
 	return
 }
 
-// secures the ftp connection by using TLS
-func (ftp *FTP) AuthTLS(config tls.Config) error {
+//AuthTLS secures the ftp connection by using TLS
+func (ftp *FTP) AuthTLS(config *tls.Config) error {
 	if _, err := ftp.cmd(CodeAuthMechanismAccepted, "AUTH TLS"); err != nil {
 		return err
 	}
 
 	// wrap tls on existing connection
-	ftp.tlsconfig = &config
+	ftp.tlsconfig = config
 
-	ftp.conn = tls.Client(ftp.conn, &config)
+	ftp.conn = tls.Client(ftp.conn, config)
 	ftp.writer = bufio.NewWriter(ftp.conn)
 	ftp.reader = bufio.NewReader(ftp.conn)
 
@@ -335,8 +350,8 @@ func (ftp *FTP) AuthTLS(config tls.Config) error {
 func (ftp *FTP) readAndDiscard() (int, error) {
 	var i int
 	var err error
-	buffer_size := ftp.reader.Buffered()
-	for i = 0; i < buffer_size; i++ {
+	bufferSize := ftp.reader.Buffered()
+	for i = 0; i < bufferSize; i++ {
 		if _, err = ftp.reader.ReadByte(); err != nil {
 			return i, err
 		}
@@ -344,7 +359,7 @@ func (ftp *FTP) readAndDiscard() (int, error) {
 	return i, err
 }
 
-// change transfer type
+//Type change transfer type
 func (ftp *FTP) Type(t string) error {
 	_, err := ftp.cmd(CodeCommandOk, "TYPE %s", t)
 	return err
@@ -359,6 +374,7 @@ func (ftp *FTP) receiveLine() (string, error) {
 	return line, err
 }
 
+//getCode extracts ftp status code from line
 func (ftp *FTP) getCode(line string) (int, bool, error) {
 	trimmedLine := strings.Trim(line, " \r\n")
 	fields := strings.Fields(trimmedLine)
@@ -431,7 +447,7 @@ func (ftp *FTP) send(command string, arguments ...interface{}) error {
 	return nil
 }
 
-// enables passive data connection and returns port number
+//Pasv enables passive data connection and returns port number
 func (ftp *FTP) Pasv() (port int, err error) {
 	var line string
 	if line, err = ftp.cmd(CodeEnteringPassiveMode, "PASV"); err != nil {
@@ -452,7 +468,7 @@ func (ftp *FTP) Pasv() (port int, err error) {
 	return
 }
 
-// open new data connection
+//newConnection open new data connection
 func (ftp *FTP) newConnection(port int) (conn net.Conn, err error) {
 	addr := fmt.Sprintf("%s:%d", strings.Split(ftp.addr, ":")[0], port)
 
@@ -471,7 +487,7 @@ func (ftp *FTP) newConnection(port int) (conn net.Conn, err error) {
 	return
 }
 
-// upload file
+//Stor upload file to server
 func (ftp *FTP) Stor(path string, r io.Reader) (err error) {
 	if err = ftp.Type("I"); err != nil {
 		return
@@ -520,7 +536,7 @@ func (ftp *FTP) Stor(path string, r io.Reader) (err error) {
 
 }
 
-// retrieves file
+//Retr retrieves file from server
 func (ftp *FTP) Retr(path string, retrFn RetrFunc) (s string, err error) {
 	if err = ftp.Type("I"); err != nil {
 		return
@@ -568,7 +584,7 @@ func (ftp *FTP) Retr(path string, retrFn RetrFunc) (s string, err error) {
 	return
 }
 
-// login to the server
+//Login login to the server
 func (ftp *FTP) Login(username string, password string) (err error) {
 	if _, err = ftp.cmd(CodeUserNameOkNeedPassword, "USER %s", username); err != nil {
 		if ftp.HasCode(err.Error(), CodeUserLoggedIn) {
@@ -587,7 +603,7 @@ func (ftp *FTP) Login(username string, password string) (err error) {
 	return
 }
 
-// connect to server, debug is OFF
+//Connect connect to server, debug is OFF
 func Connect(addr string) (*FTP, error) {
 	var err error
 	var conn net.Conn
@@ -606,7 +622,7 @@ func Connect(addr string) (*FTP, error) {
 	return object, nil
 }
 
-// connect to server, debug is ON
+//ConnectDbg connect to server, debug is ON
 func ConnectDbg(addr string) (*FTP, error) {
 	var err error
 	var conn net.Conn
@@ -628,7 +644,7 @@ func ConnectDbg(addr string) (*FTP, error) {
 	return object, nil
 }
 
-// list the path (or current directory). return raw listing, do not parse it.
+//List list the path (or current directory). return raw listing, do not parse it.
 func (ftp *FTP) List(path string) (files []string, err error) {
 	if err = ftp.Type("A"); err != nil {
 		return
@@ -698,6 +714,7 @@ func (ftp *FTP) List(path string) (files []string, err error) {
 	return
 }
 
+//HasCode check if ftp status code in line
 func (ftp *FTP) HasCode(line string, code int) bool {
 	lineCode, _, err := ftp.getCode(line)
 	if err != nil {
