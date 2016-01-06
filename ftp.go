@@ -112,7 +112,7 @@ func (ftp *FTP) WalkCustom(path string, walkFn WalkFunc, errHandler ErrorHandler
 			err = ftp.WalkCustom(subpath, walkFn, errHandler, deep-1)
 		} else if deep < 0 {
 			err = ftp.WalkCustom(subpath, walkFn, errHandler)
-		} else if deep == 0 {
+		} else if deep == 0 && ftp.debug {
 			log.Println("Deep limit reached")
 		}
 		if err != nil {

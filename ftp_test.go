@@ -60,7 +60,9 @@ func standard(host string) (msg string) {
 	if code < 0 || code > 299 {
 		return fmt.Sprintf("Can't FEAT -> %d", code)
 	}
-	fmt.Println(str)
+	if testing.Verbose() {
+		fmt.Println(str)
+	}
 
 	connection.Close()
 	return ""
@@ -82,9 +84,11 @@ func walk(host string) (msg string) {
 	}
 
 	err = connection.Walk("/", func(path string, info os.FileMode, err error) error {
-		fmt.Print("--->")
 		filehit = filehit + 1
-		fmt.Println(path)
+		if testing.Verbose() {
+			fmt.Print("--->")
+			fmt.Println(path)
+		}
 		return nil
 
 	}, deep)
@@ -95,7 +99,6 @@ func walk(host string) (msg string) {
 	if filehit < 1 {
 		return "Can't walk " + host + " -> No file found"
 	}
-	os.Stdout.Sync()
 	connection.Close()
 	return ""
 
@@ -171,12 +174,13 @@ func TestGetFilesListOnGoodServer(t *testing.T) {
 		t.Error("Can't parse file list ->" + err.Error())
 	}
 
-	fmt.Println(files)
-	fmt.Println("---")
-	fmt.Println(dirs)
-	fmt.Println("---")
-	fmt.Println(links)
-
+	if testing.Verbose() {
+		fmt.Println(files)
+		fmt.Println("---")
+		fmt.Println(dirs)
+		fmt.Println("---")
+		fmt.Println(links)
+	}
 	connection.Close()
 }
 
