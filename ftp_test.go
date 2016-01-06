@@ -26,7 +26,9 @@ func active(host string) (msg string) {
 	var err error
 	var connection *FTP
 
-	fmt.Println("Testing active command on -> " + host)
+	if testing.Verbose() {
+		fmt.Println("Testing active command on -> " + host)
+	}
 
 	if connection, err = Connect(host); err != nil {
 		return "Can't connect ->" + err.Error()
@@ -38,7 +40,9 @@ func active(host string) (msg string) {
 	if code < 0 || code > 299 {
 		return fmt.Sprintf("Can't list -> %d", code)
 	}
-	fmt.Println(response)
+	if testing.Verbose() {
+		fmt.Println(fmt.Println(response))
+	}
 	connection.Close()
 	return ""
 
@@ -48,8 +52,9 @@ func standard(host string) (msg string) {
 	var err error
 	var connection *FTP
 
-	fmt.Println("Testing standard (passive) command on -> " + host)
-
+	if testing.Verbose() {
+		fmt.Println("Testing standard (passive) command on -> " + host)
+	}
 	if connection, err = Connect(host); err != nil {
 		return "Can't connect ->" + err.Error()
 	}
@@ -63,7 +68,6 @@ func standard(host string) (msg string) {
 	if testing.Verbose() {
 		fmt.Println(str)
 	}
-
 	connection.Close()
 	return ""
 }
@@ -74,8 +78,9 @@ func walk(host string) (msg string) {
 	deep := 2
 	filehit := 0
 
-	fmt.Println("Testing walk on -> " + host)
-
+	if testing.Verbose() {
+		fmt.Println("Testing walk on -> " + host)
+	}
 	if connection, err = Connect(host); err != nil {
 		return "Can't connect ->" + err.Error()
 	}
@@ -160,8 +165,9 @@ func TestGetFilesListOnGoodServer(t *testing.T) {
 	var connection *FTP
 	host := uglyServer
 
-	fmt.Println("Testing file list parsing on -> " + host)
-
+	if testing.Verbose() {
+		fmt.Println("Testing file list parsing on -> " + host)
+	}
 	if connection, err = Connect(host); err != nil {
 		t.Error("Can't connect ->" + err.Error())
 	}
@@ -208,7 +214,9 @@ func TestGetCode(t *testing.T) {
 	}
 	ftp := &FTP{}
 
-	fmt.Println("Testing getCodeResult")
+	if testing.Verbose() {
+		fmt.Println("Testing getCodeResult")
+	}
 
 	for _, test := range tests {
 		code, beginMultiline, err := ftp.getCode(test.input)
@@ -239,7 +247,9 @@ func TestHasCode(t *testing.T) {
 		{"220     test", 550, false},
 	}
 	ftp := &FTP{}
-	fmt.Println("Testing hasCode")
+	if testing.Verbose() {
+		fmt.Println("Testing hasCode")
+	}
 	for _, test := range tests {
 		hasCode := ftp.HasCode(test.input, test.code)
 		if hasCode != test.want {
