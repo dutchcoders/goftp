@@ -493,17 +493,13 @@ func (ftp *FTP) Stor(path string, r io.Reader) (err error) {
 		return
 	}
 
-	var port int
-	if port, err = ftp.Pasv(); err != nil {
+	pconn, err := ftp.NewPassiveConnection()
+	if err != nil {
 		return
 	}
+	defer pconn.Close()
 
 	if err = ftp.send("STOR %s", path); err != nil {
-		return
-	}
-
-	var pconn net.Conn
-	if pconn, err = ftp.newConnection(port); err != nil {
 		return
 	}
 
@@ -521,19 +517,14 @@ func (ftp *FTP) Stor(path string, r io.Reader) (err error) {
 		return
 	}
 
-	pconn.Close()
-
 	if line, err = ftp.receive(); err != nil {
 		return
 	}
-
 	if !ftp.HasCode(line, CodeClosingDataConnection) {
 		err = errors.New(line)
 		return
 	}
-
 	return
-
 }
 
 //Retr retrieves file from server
@@ -542,17 +533,13 @@ func (ftp *FTP) Retr(path string, retrFn RetrFunc) (s string, err error) {
 		return
 	}
 
-	var port int
-	if port, err = ftp.Pasv(); err != nil {
+	pconn, err := ftp.NewPassiveConnection()
+	if err != nil {
 		return
 	}
+	defer pconn.Close()
 
 	if err = ftp.send("RETR %s", path); err != nil {
-		return
-	}
-
-	var pconn net.Conn
-	if pconn, err = ftp.newConnection(port); err != nil {
 		return
 	}
 
@@ -570,8 +557,6 @@ func (ftp *FTP) Retr(path string, retrFn RetrFunc) (s string, err error) {
 		return
 	}
 
-	pconn.Close()
-
 	if line, err = ftp.receive(); err != nil {
 		return
 	}
@@ -580,7 +565,6 @@ func (ftp *FTP) Retr(path string, retrFn RetrFunc) (s string, err error) {
 		err = errors.New(line)
 		return
 	}
-
 	return
 }
 
@@ -724,4 +708,13 @@ func (ftp *FTP) HasCode(line string, code int) bool {
 		return true
 	}
 	return false
+}
+
+//NewPassiveConnection enables passive data connection and connect to server
+func (ftp *FTP) NewPassiveConnection() (conn net.Conn, err error) {
+	port, err := ftp.Pasv()
+	if err != nil {
+		return
+	}
+	return ftp.newConnection(port)
 }
