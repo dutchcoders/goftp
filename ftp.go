@@ -497,7 +497,6 @@ func (ftp *FTP) Stor(path string, r io.Reader) (err error) {
 	if err != nil {
 		return
 	}
-	defer pconn.Close()
 
 	if err = ftp.send("STOR %s", path); err != nil {
 		return
@@ -516,7 +515,7 @@ func (ftp *FTP) Stor(path string, r io.Reader) (err error) {
 	if _, err = io.Copy(pconn, r); err != nil {
 		return
 	}
-
+	pconn.Close()
 	if line, err = ftp.receive(); err != nil {
 		return
 	}
@@ -537,7 +536,6 @@ func (ftp *FTP) Retr(path string, retrFn RetrFunc) (s string, err error) {
 	if err != nil {
 		return
 	}
-	defer pconn.Close()
 
 	if err = ftp.send("RETR %s", path); err != nil {
 		return
@@ -556,7 +554,7 @@ func (ftp *FTP) Retr(path string, retrFn RetrFunc) (s string, err error) {
 	if err = retrFn(pconn); err != nil {
 		return
 	}
-
+	pconn.Close()
 	if line, err = ftp.receive(); err != nil {
 		return
 	}
