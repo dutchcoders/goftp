@@ -30,6 +30,9 @@ type FTP struct {
 	supportedfeatures uint32
 }
 
+//TransferMode ftp transfer mode
+type TransferMode string
+
 const (
 	//MLSD server can return directory listing in machine readable format.
 	//Supported
@@ -42,6 +45,11 @@ const (
 	EPLF = 4
 	//BAD this server only supports LIST output format
 	BAD = 1 >> 32
+
+	//ModeASCII transfer mode ASCII
+	ModeASCII TransferMode = "A"
+	//ModeBinary transfer mode binary
+	ModeBinary TransferMode = "I"
 
 //	STUBBORN = -2
 )
@@ -359,8 +367,8 @@ func (ftp *FTP) readAndDiscard() (int, error) {
 	return i, err
 }
 
-//Type change transfer type
-func (ftp *FTP) Type(t string) error {
+//Type sets the transfer mode (ASCII/Binary).
+func (ftp *FTP) Type(t TransferMode) error {
 	_, err := ftp.cmd(CodeCommandOk, "TYPE %s", t)
 	return err
 }
@@ -489,7 +497,7 @@ func (ftp *FTP) newConnection(port int) (conn net.Conn, err error) {
 
 //Stor upload file to server
 func (ftp *FTP) Stor(path string, r io.Reader) (err error) {
-	if err = ftp.Type("I"); err != nil {
+	if err = ftp.Type(ModeBinary); err != nil {
 		return
 	}
 
@@ -528,7 +536,7 @@ func (ftp *FTP) Stor(path string, r io.Reader) (err error) {
 
 //Retr retrieves file from server
 func (ftp *FTP) Retr(path string, retrFn RetrFunc) (s string, err error) {
-	if err = ftp.Type("I"); err != nil {
+	if err = ftp.Type(ModeBinary); err != nil {
 		return
 	}
 
@@ -628,7 +636,7 @@ func ConnectDbg(addr string) (*FTP, error) {
 
 //List list the path (or current directory). return raw listing, do not parse it.
 func (ftp *FTP) List(path string) (files []string, err error) {
-	if err = ftp.Type("A"); err != nil {
+	if err = ftp.Type(ModeASCII); err != nil {
 		return
 	}
 
