@@ -169,6 +169,12 @@ func (ftp *FTP) Mkd(path string) error {
 	return err
 }
 
+// remove directory
+func (ftp *FTP) Rmd(path string) error {
+	_, err := ftp.cmd("250", "RMD %s", path)
+	return err
+}
+
 // get current path
 func (ftp *FTP) Pwd() (path string, err error) {
 	var line string
