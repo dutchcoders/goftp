@@ -170,9 +170,9 @@ func (ftp *FTP) Mkd(path string) error {
 }
 
 // remove directory
-func (ftp *FTP) Rmd(path string) error {
-	_, err := ftp.cmd("250", "RMD %s", path)
-	return err
+func (ftp *FTP) Rmd(path string) (err error) {
+	_, err = ftp.cmd("250", "RMD %s", path)
+	return
 }
 
 // get current path
