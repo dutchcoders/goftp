@@ -114,7 +114,7 @@ func (ftp *FTP) Noop() (err error) {
 // Send raw commands, return response as string and response code as int
 func (ftp *FTP) RawCmd(command string, args ...interface{}) (code int, line string) {
 	if ftp.debug {
-		log.Printf("Raw-> %s\n", fmt.Sprintf(command, args...), code)
+		log.Printf("Raw-> %s\n", fmt.Sprintf(command, args...))
 	}
 
 	code = -1
