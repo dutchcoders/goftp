@@ -28,6 +28,7 @@ type FTP struct {
 	reader            *bufio.Reader
 	writer            *bufio.Writer
 	supportedfeatures uint32
+	isMS              bool
 }
 
 //TransferMode ftp transfer mode
@@ -607,7 +608,11 @@ func Connect(addr string) (*FTP, error) {
 
 	//reader.ReadString('\n')
 	object := &FTP{conn: conn, addr: addr, reader: reader, writer: writer, debug: false, supportedfeatures: 0}
-	object.receive()
+	line, _ := object.receive()
+
+	if strings.Contains(line, "Microsoft") {
+		object.isMS = true
+	}
 
 	return object, nil
 }
@@ -628,6 +633,11 @@ func ConnectDbg(addr string) (*FTP, error) {
 
 	object := &FTP{conn: conn, addr: addr, reader: reader, writer: writer, debug: true, supportedfeatures: 0}
 	line, _ = object.receive()
+
+	if strings.Contains(line, "Microsoft") {
+		log.Print("Server Microsoft")
+		object.isMS = true
+	}
 
 	log.Print(line)
 
@@ -709,6 +719,9 @@ func (ftp *FTP) HasCode(line string, code int) bool {
 	lineCode, _, err := ftp.getCode(line)
 	if err != nil {
 		return false
+	}
+	if ftp.isMS && code == CodeFileStatusOk && lineCode == CodeDataConnectionAlreadyOpen {
+		return true
 	}
 	if lineCode == code {
 		return true
