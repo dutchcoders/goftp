@@ -319,6 +319,39 @@ func (ftp *FTP) receive() (string, error) {
 	return line, err
 }
 
+func (ftp *FTP) receiveNoDiscard() (string, error) {
+	line, err := ftp.receiveLine()
+
+	if err != nil {
+		return line, err
+	}
+
+	if (len(line) >= 4) && (line[3] == '-') {
+		//Multiline response
+		closingCode := line[:3] + " "
+		for {
+			str, err := ftp.receiveLine()
+			line = line + str
+			if err != nil {
+				return line, err
+			}
+			if len(str) < 4 {
+				if ftp.debug {
+					log.Println("Uncorrectly terminated response")
+				}
+				break
+			} else {
+				if str[:4] == closingCode {
+					break
+				}
+			}
+		}
+	}
+	//ftp.ReadAndDiscard()
+	//fmt.Println(line)
+	return line, err
+}
+
 func (ftp *FTP) send(command string, arguments ...interface{}) error {
 	if ftp.debug {
 		log.Printf("> %s", fmt.Sprintf(command, arguments...))
@@ -563,7 +596,7 @@ func (ftp *FTP) List(path string) (files []string, err error) {
 	defer pconn.Close()
 
 	var line string
-	if line, err = ftp.receive(); err != nil {
+	if line, err = ftp.receiveNoDiscard(); err != nil {
 		return
 	}
 
@@ -573,7 +606,7 @@ func (ftp *FTP) List(path string) (files []string, err error) {
 			return
 		}
 
-		if line, err = ftp.receive(); err != nil {
+		if line, err = ftp.receiveNoDiscard(); err != nil {
 			return
 		}
 
