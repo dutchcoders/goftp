@@ -377,7 +377,6 @@ func (ftp *FTP) Pasv() (port int, err error) {
 	if line, err = ftp.cmd("227", "PASV"); err != nil {
 		return
 	}
-
 	re, err := regexp.Compile(`\((.*)\)`)
 
 	res := re.FindAllStringSubmatch(line, -1)
@@ -544,7 +543,7 @@ func (ftp *FTP) Retr(path string, retrFn RetrFunc) (s string, err error) {
 	defer pconn.Close()
 
 	var line string
-	if line, err = ftp.receive(); err != nil {
+	if line, err = ftp.receiveNoDiscard(); err != nil {
 		return
 	}
 
@@ -556,6 +555,8 @@ func (ftp *FTP) Retr(path string, retrFn RetrFunc) (s string, err error) {
 	if err = retrFn(pconn); err != nil {
 		return
 	}
+
+	pconn.Close()
 
 	if line, err = ftp.receive(); err != nil {
 		return
@@ -620,7 +621,6 @@ func (ftp *FTP) List(path string) (files []string, err error) {
 
 	for {
 		line, err = reader.ReadString('\n')
-
 		if err == io.EOF {
 			break
 		} else if err != nil {
@@ -629,6 +629,8 @@ func (ftp *FTP) List(path string) (files []string, err error) {
 
 		files = append(files, string(line))
 	}
+	// Must close for vsftp tlsed conenction otherwise does not receive connection
+	pconn.Close()
 
 	if line, err = ftp.receive(); err != nil {
 		return
