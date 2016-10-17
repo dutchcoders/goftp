@@ -412,6 +412,7 @@ func (ftp *FTP) Stor(path string, r io.Reader) (err error) {
 	if _, err = io.Copy(pconn, r); err != nil {
 		return
 	}
+	pconn.Close()
 
 	if line, err = ftp.receive(); err != nil {
 		return
