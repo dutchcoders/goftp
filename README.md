@@ -30,9 +30,22 @@ Golang FTP library with Walk support.
     	if ftp, err = goftp.Connect(server); err != nil {
     		panic(err)
     	}
+    	defer ftp.Close()
     	fmt.Println("Successfully onnected to", server)
     
-    	defer ftp.Close()
+    	// TLS client authentication
+    	config := &tls.Config{
+    		InsecureSkipVerify: true,
+    		ClientAuth:         tls.RequestClientCert,
+    	}
+    	if err = ftp.AuthTLS(config); err != nil {
+    		panic(err)
+    	}
+
+    	// Username / password authentication
+    	if err = ftp.Login("username", "password"); err != nil {
+    		panic(err)
+    	}
     
     	if err = ftp.Login("username", "password"); err != nil {
     		panic(err)
