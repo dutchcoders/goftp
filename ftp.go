@@ -12,6 +12,7 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+	"time"
 )
 
 // RePwdPath is the default expression for matching files in the current working directory
@@ -36,10 +37,10 @@ func (ftp *FTP) Close() error {
 }
 
 type (
-	// WalkFunc is called on each path in a Walk. Errors are filtered through WalkFunc
+// WalkFunc is called on each path in a Walk. Errors are filtered through WalkFunc
 	WalkFunc func(path string, info os.FileMode, err error) error
 
-	// RetrFunc is passed to Retr and is the handler for the stream received for a given path
+// RetrFunc is passed to Retr and is the handler for the stream received for a given path
 	RetrFunc func(r io.Reader) error
 )
 
@@ -266,13 +267,13 @@ func (ftp *FTP) Type(t TypeCode) error {
 type TypeCode string
 
 const (
-	// TypeASCII for ASCII
+// TypeASCII for ASCII
 	TypeASCII = "A"
-	// TypeEBCDIC for EBCDIC
+// TypeEBCDIC for EBCDIC
 	TypeEBCDIC = "E"
-	// TypeImage for an Image
+// TypeImage for an Image
 	TypeImage = "I"
-	// TypeLocal for local byte size
+// TypeLocal for local byte size
 	TypeLocal = "L"
 )
 
@@ -372,21 +373,43 @@ func (ftp *FTP) send(command string, arguments ...interface{}) error {
 }
 
 // Pasv enables passive data connection and returns port number
+
 func (ftp *FTP) Pasv() (port int, err error) {
-	var line string
-	if line, err = ftp.cmd("227", "PASV"); err != nil {
+	doneChan := make(chan int, 1)
+	go func() {
+		defer func() {
+			doneChan <- 1
+		}()
+		var line string
+		if line, err = ftp.cmd("227", "PASV"); err != nil {
+			return
+		}
+		re := regexp.MustCompile(`\((.*)\)`)
+		res := re.FindAllStringSubmatch(line, -1)
+		if len(res) == 0 || len(res[0]) < 2 {
+			err = errors.New("PasvBadAnswer")
+			return
+		}
+		s := strings.Split(res[0][1], ",")
+		if len(s) < 2 {
+			err = errors.New("PasvBadAnswer")
+			return
+		}
+		l1, _ := strconv.Atoi(s[len(s)-2])
+		l2, _ := strconv.Atoi(s[len(s)-1])
+
+		port = l1<<8 + l2
+
 		return
+	}()
+
+	select {
+	case _ = <-doneChan:
+
+	case <-time.After(time.Second * 10):
+		err = errors.New("PasvTimeout")
+		ftp.Close()
 	}
-	re, err := regexp.Compile(`\((.*)\)`)
-
-	res := re.FindAllStringSubmatch(line, -1)
-
-	s := strings.Split(res[0][1], ",")
-
-	l1, _ := strconv.Atoi(s[len(s)-2])
-	l2, _ := strconv.Atoi(s[len(s)-1])
-
-	port = l1<<8 + l2
 
 	return
 }
@@ -497,8 +520,8 @@ func (ftp *FTP) Stat(path string) ([]string, error) {
 		return nil, err
 	}
 	if !strings.HasPrefix(stat, StatusFileStatus) &&
-		!strings.HasPrefix(stat, StatusDirectoryStatus) &&
-		!strings.HasPrefix(stat, StatusSystemStatus) {
+	!strings.HasPrefix(stat, StatusDirectoryStatus) &&
+	!strings.HasPrefix(stat, StatusSystemStatus) {
 		return nil, errors.New(stat)
 	}
 	if strings.HasPrefix(stat, StatusSystemStatus) {
@@ -750,3 +773,4 @@ func (ftp *FTP) Size(path string) (size int, err error) {
 
 	return strconv.Atoi(line[4 : len(line)-2])
 }
+
