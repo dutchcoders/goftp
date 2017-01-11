@@ -32,7 +32,7 @@ Golang FTP library with Walk support.
     		panic(err)
     	}
     	defer ftp.Close()
-    	fmt.Println("Successfully onnected to", server)
+    	fmt.Println("Successfully connected to", server)
     
     	// TLS client authentication
     	config := &tls.Config{
