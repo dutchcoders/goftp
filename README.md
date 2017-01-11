@@ -13,6 +13,7 @@ Golang FTP library with Walk support.
     
     import (
     	"crypto/sha256"
+        "crypto/tls"
     	"fmt"
     	"io"
     	"os"
@@ -46,11 +47,7 @@ Golang FTP library with Walk support.
     	if err = ftp.Login("username", "password"); err != nil {
     		panic(err)
     	}
-    
-    	if err = ftp.Login("username", "password"); err != nil {
-    		panic(err)
-    	}
-    
+
     	if err = ftp.Cwd("/"); err != nil {
     		panic(err)
     	}
