@@ -712,5 +712,5 @@ func (ftp *FTP) Size(path string) (size int, err error) {
 		return 0, err
 	}
 
-	return strconv.Atoi(line)
+	return strconv.Atoi(line[4 : len(line)-2])
 }
