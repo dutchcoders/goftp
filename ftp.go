@@ -17,14 +17,24 @@ import (
 // RePwdPath is the default expression for matching files in the current working directory
 var RePwdPath = regexp.MustCompile(`\"(.*)\"`)
 
+// StatusError is a trivial implementation of error
+type StatusError struct {
+	s string
+}
+
+func (e StatusError) Error() string {
+	return e.s
+}
+
 // FTP is a session for File Transfer Protocol
 type FTP struct {
 	conn net.Conn
 
 	addr string
 
-	debug     bool
-	tlsconfig *tls.Config
+	debug          bool
+	tlsconfig      *tls.Config
+	dataEncryption bool
 
 	reader *bufio.Reader
 	writer *bufio.Writer
@@ -237,9 +247,12 @@ func (ftp *FTP) AuthTLS(config *tls.Config) error {
 	}
 
 	if _, err := ftp.cmd(StatusOK, "PROT P"); err != nil {
+		if _, ok := err.(StatusError); ok {
+			return nil
+		}
 		return err
 	}
-
+	ftp.dataEncryption = true
 	return nil
 }
 
@@ -371,7 +384,7 @@ func (ftp *FTP) newConnection(port int) (conn net.Conn, err error) {
 		return
 	}
 
-	if ftp.tlsconfig != nil {
+	if ftp.dataEncryption && ftp.tlsconfig != nil {
 		conn = tls.Client(conn, ftp.tlsconfig)
 	}
 
