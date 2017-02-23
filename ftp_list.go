@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"log"
+	"path"
 	"regexp"
 	"strings"
 )
@@ -103,12 +104,12 @@ func (ftp *FTP) parseMLSD(data []string, basePath string) (files []string, direc
 			if subpath == "." {
 			} else if subpath == ".." {
 			} else {
-				directories = append(directories, basePath+subpath+"/")
+				directories = append(directories, path.Join(basePath, subpath))
 			}
 		case "file":
-			files = append(files, basePath+subpath)
+			files = append(files, path.Join(basePath, subpath))
 		case "OS.unix=symlink":
-			links = append(links, basePath+subpath)
+			links = append(links, path.Join(basePath, subpath))
 		}
 
 	}
@@ -167,9 +168,9 @@ func (ftp *FTP) parseUnixLIST(data []string, basePath string) (files []string, d
 		}*/
 		if len(match) > 6 {
 			if match[1] == "-" { // a file
-				files = append(files, basePath+match[7])
+				files = append(files, path.Join(basePath, match[7]))
 			} else if match[1] == "d" { // a directory
-				directories = append(directories, basePath+match[7]+"/")
+				directories = append(directories, path.Join(basePath, match[7]))
 			} else if match[1] == "l" { // a link
 				token := strings.Trim(strings.Split(line, "->")[1], " ")
 				links = append(links, token)
