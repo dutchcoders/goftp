@@ -31,8 +31,8 @@ type FTP struct {
 }
 
 // Close ends the FTP connection
-func (ftp *FTP) Close() {
-	ftp.conn.Close()
+func (ftp *FTP) Close() error {
+	return ftp.conn.Close()
 }
 
 type (
