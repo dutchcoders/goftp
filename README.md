@@ -20,7 +20,7 @@ import (
     "os"
 
     "encoding/hex"
-    "gopkg.in/dutchcoders/goftp.v1"
+    "gopkg.in/dutchcoders/goftp"
 )
 
 func main() {
