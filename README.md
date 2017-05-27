@@ -41,7 +41,7 @@ func main() {
         ClientAuth:         tls.RequestClientCert,
     }
 
-    if err = ftp.AuthTLS(config); err != nil {
+    if err = ftp.AuthTLS(&config); err != nil {
         panic(err)
     }
 
