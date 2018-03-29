@@ -37,14 +37,14 @@ func (ftp *FTP) Close() error {
 }
 
 type (
-// WalkFunc is called on each path in a Walk. Errors are filtered through WalkFunc
-	WalkFunc func(path string, info os.FileMode, err error) error
+	// WalkFunc is called on each path in a Walk. Errors are filtered through WalkFunc
+	WalkFunc func(path string, info FileInfo, err error) error
 
-// RetrFunc is passed to Retr and is the handler for the stream received for a given path
+	// RetrFunc is passed to Retr and is the handler for the stream received for a given path
 	RetrFunc func(r io.Reader) error
 )
 
-func parseLine(line string) (perm string, t string, filename string) {
+func parseLine(line string) (perm string, t string, modify string, size string, filename string) {
 	for _, v := range strings.Split(line, ";") {
 		v2 := strings.Split(v, "=")
 
@@ -53,6 +53,10 @@ func parseLine(line string) (perm string, t string, filename string) {
 			perm = v2[1]
 		case "type":
 			t = v2[1]
+		case "modify":
+			modify = v2[1]
+		case "size":
+			size = v2[1]
 		default:
 			filename = v[1 : len(v)-2]
 		}
@@ -80,7 +84,7 @@ func (ftp *FTP) Walk(path string, walkFn WalkFunc) (err error) {
 	}
 
 	for _, line := range lines {
-		_, t, subpath := parseLine(line)
+		_, t, modify, size, subpath := parseLine(line)
 
 		switch t {
 		case "dir":
@@ -92,7 +96,18 @@ func (ftp *FTP) Walk(path string, walkFn WalkFunc) (err error) {
 				}
 			}
 		case "file":
-			if err = walkFn(path+subpath, os.FileMode(0), nil); err != nil {
+			info := FileInfo{
+				mode: os.FileMode(0),
+				size: -1,
+			}
+			if ts, err := time.Parse("20060102150405", modify); err == nil {
+				info.modTime = ts
+			}
+			if filesize, err := strconv.ParseInt(size, 10, 64); err == nil {
+				info.size = filesize
+			}
+
+			if err = walkFn(path+subpath, info, nil); err != nil {
 				return
 			}
 		}
@@ -267,13 +282,13 @@ func (ftp *FTP) Type(t TypeCode) error {
 type TypeCode string
 
 const (
-// TypeASCII for ASCII
+	// TypeASCII for ASCII
 	TypeASCII = "A"
-// TypeEBCDIC for EBCDIC
+	// TypeEBCDIC for EBCDIC
 	TypeEBCDIC = "E"
-// TypeImage for an Image
+	// TypeImage for an Image
 	TypeImage = "I"
-// TypeLocal for local byte size
+	// TypeLocal for local byte size
 	TypeLocal = "L"
 )
 
@@ -504,11 +519,6 @@ var (
 	SystemTypeWindowsNT = "Windows_NT"
 )
 
-var reSystStatus = map[string]*regexp.Regexp{
-	SystemTypeUnixL8:    regexp.MustCompile(""),
-	SystemTypeWindowsNT: regexp.MustCompile(""),
-}
-
 // Stat gets the status of path from the remote host
 func (ftp *FTP) Stat(path string) ([]string, error) {
 	if err := ftp.send("STAT %s", path); err != nil {
@@ -520,8 +530,8 @@ func (ftp *FTP) Stat(path string) ([]string, error) {
 		return nil, err
 	}
 	if !strings.HasPrefix(stat, StatusFileStatus) &&
-	!strings.HasPrefix(stat, StatusDirectoryStatus) &&
-	!strings.HasPrefix(stat, StatusSystemStatus) {
+		!strings.HasPrefix(stat, StatusDirectoryStatus) &&
+		!strings.HasPrefix(stat, StatusSystemStatus) {
 		return nil, errors.New(stat)
 	}
 	if strings.HasPrefix(stat, StatusSystemStatus) {
@@ -650,7 +660,6 @@ func (ftp *FTP) List(path string) (files []string, err error) {
 		} else if err != nil {
 			return
 		}
-
 		files = append(files, string(line))
 	}
 	// Must close for vsftp tlsed conenction otherwise does not receive connection
@@ -773,4 +782,3 @@ func (ftp *FTP) Size(path string) (size int, err error) {
 
 	return strconv.Atoi(line[4 : len(line)-2])
 }
-
