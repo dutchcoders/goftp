@@ -37,10 +37,10 @@ func (ftp *FTP) Close() error {
 }
 
 type (
-// WalkFunc is called on each path in a Walk. Errors are filtered through WalkFunc
+	// WalkFunc is called on each path in a Walk. Errors are filtered through WalkFunc
 	WalkFunc func(path string, info os.FileMode, err error) error
 
-// RetrFunc is passed to Retr and is the handler for the stream received for a given path
+	// RetrFunc is passed to Retr and is the handler for the stream received for a given path
 	RetrFunc func(r io.Reader) error
 )
 
@@ -267,13 +267,13 @@ func (ftp *FTP) Type(t TypeCode) error {
 type TypeCode string
 
 const (
-// TypeASCII for ASCII
+	// TypeASCII for ASCII
 	TypeASCII = "A"
-// TypeEBCDIC for EBCDIC
+	// TypeEBCDIC for EBCDIC
 	TypeEBCDIC = "E"
-// TypeImage for an Image
+	// TypeImage for an Image
 	TypeImage = "I"
-// TypeLocal for local byte size
+	// TypeLocal for local byte size
 	TypeLocal = "L"
 )
 
@@ -520,8 +520,8 @@ func (ftp *FTP) Stat(path string) ([]string, error) {
 		return nil, err
 	}
 	if !strings.HasPrefix(stat, StatusFileStatus) &&
-	!strings.HasPrefix(stat, StatusDirectoryStatus) &&
-	!strings.HasPrefix(stat, StatusSystemStatus) {
+		!strings.HasPrefix(stat, StatusDirectoryStatus) &&
+		!strings.HasPrefix(stat, StatusSystemStatus) {
 		return nil, errors.New(stat)
 	}
 	if strings.HasPrefix(stat, StatusSystemStatus) {
@@ -573,7 +573,7 @@ func (ftp *FTP) Retr(path string, retrFn RetrFunc) (s string, err error) {
 
 	if !strings.HasPrefix(line, StatusFileOK) {
 		err = errors.New(line)
-		return
+		log.Print("Response did not contain FTP Status 150. \n Response: " + line)
 	}
 
 	if err = retrFn(pconn); err != nil {
@@ -588,7 +588,7 @@ func (ftp *FTP) Retr(path string, retrFn RetrFunc) (s string, err error) {
 
 	if !strings.HasPrefix(line, StatusClosingDataConnection) {
 		err = errors.New(line)
-		return
+		log.Print("Response did not contain FTP Status 226. \n Response: " + line)
 	}
 
 	return
@@ -773,4 +773,3 @@ func (ftp *FTP) Size(path string) (size int, err error) {
 
 	return strconv.Atoi(line[4 : len(line)-2])
 }
-
