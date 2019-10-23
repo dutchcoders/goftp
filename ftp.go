@@ -37,10 +37,10 @@ func (ftp *FTP) Close() error {
 }
 
 type (
-// WalkFunc is called on each path in a Walk. Errors are filtered through WalkFunc
+	// WalkFunc is called on each path in a Walk. Errors are filtered through WalkFunc
 	WalkFunc func(path string, info os.FileMode, err error) error
 
-// RetrFunc is passed to Retr and is the handler for the stream received for a given path
+	// RetrFunc is passed to Retr and is the handler for the stream received for a given path
 	RetrFunc func(r io.Reader) error
 )
 
@@ -267,13 +267,13 @@ func (ftp *FTP) Type(t TypeCode) error {
 type TypeCode string
 
 const (
-// TypeASCII for ASCII
+	// TypeASCII for ASCII
 	TypeASCII = "A"
-// TypeEBCDIC for EBCDIC
+	// TypeEBCDIC for EBCDIC
 	TypeEBCDIC = "E"
-// TypeImage for an Image
+	// TypeImage for an Image
 	TypeImage = "I"
-// TypeLocal for local byte size
+	// TypeLocal for local byte size
 	TypeLocal = "L"
 )
 
@@ -520,8 +520,8 @@ func (ftp *FTP) Stat(path string) ([]string, error) {
 		return nil, err
 	}
 	if !strings.HasPrefix(stat, StatusFileStatus) &&
-	!strings.HasPrefix(stat, StatusDirectoryStatus) &&
-	!strings.HasPrefix(stat, StatusSystemStatus) {
+		!strings.HasPrefix(stat, StatusDirectoryStatus) &&
+		!strings.HasPrefix(stat, StatusSystemStatus) {
 		return nil, errors.New(stat)
 	}
 	if strings.HasPrefix(stat, StatusSystemStatus) {
@@ -741,6 +741,19 @@ func Connect(addr string) (*FTP, error) {
 	return object, nil
 }
 
+// ConnectWithConn Connect to server at addr (format "host:port") with conn. debug is OFF
+func ConnectWithConn(conn net.Conn, addr string) (*FTP, error) {
+
+	writer := bufio.NewWriter(conn)
+	reader := bufio.NewReader(conn)
+
+	//reader.ReadString('\n')
+	object := &FTP{conn: conn, addr: addr, reader: reader, writer: writer, debug: false}
+	object.receive()
+
+	return object, nil
+}
+
 // ConnectDbg to server at addr (format "host:port"). debug is ON
 func ConnectDbg(addr string) (*FTP, error) {
 	var err error
@@ -773,4 +786,3 @@ func (ftp *FTP) Size(path string) (size int, err error) {
 
 	return strconv.Atoi(line[4 : len(line)-2])
 }
-
