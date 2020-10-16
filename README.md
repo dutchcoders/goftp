@@ -36,7 +36,7 @@ func main() {
     fmt.Println("Successfully connected to", server)
 
     // TLS client authentication
-    config := tls.Config{
+    config := &tls.Config{
         InsecureSkipVerify: true,
         ClientAuth:         tls.RequestClientCert,
     }
